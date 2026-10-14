@@ -12,3 +12,5 @@ wheels/
  # Data and secrets 
 data/
 .ipynb_checkpoints/
+*.db
+.env
