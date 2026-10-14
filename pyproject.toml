@@ -1,7 +1,7 @@
 [project]
 name = "fastbreak"
 version = "0.1.0"
-description = "Add your description here"
+description = "An NBA stats assistant that shows its work"
 readme = "README.md"
 authors = [
     { name = "Riiny Giir", email = "49204516+rama-kata@users.noreply.github.com" }
