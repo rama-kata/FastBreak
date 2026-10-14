@@ -1,0 +1,34 @@
+[project]
+name = "fastbreak"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Riiny Giir", email = "49204516+rama-kata@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.143.0",
+    "httpx>=0.28.1",
+    "nba-api>=1.11.4",
+    "pandas>=3.0.6",
+    "pydantic>=2.14.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+fastbreak = "fastbreak:main"
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+line-length = 100
