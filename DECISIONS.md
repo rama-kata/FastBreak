@@ -2,7 +2,7 @@
 
 One line per decision and why. Newest at the bottom.
 
-## Phase 1: exploring the data (Oct 2026)
+## Phase 1: exploring the data (Oct 10 2026)
 
 Checked against the 2024-25 regular season: 26,306 player rows, 2,460 team rows, 1,230 games.
 
