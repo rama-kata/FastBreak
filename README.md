@@ -11,7 +11,7 @@ Early build. Nothing here is live yet.
 
 - [x] Phase 0: project setup
 - [x] Phase 1: data exploration ([notebook](notebooks/01_explore.ipynb), [decisions](DECISIONS.md))
-- [ ] Phase 2: database schema
+- [x] Phase 2: database schema ([schema](src/fastbreak/schema.sql))
 - [ ] Phase 3: nightly data pipeline
 - [ ] Phase 4: test questions with correct answers
 - [ ] Phase 5: first agent

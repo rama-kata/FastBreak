@@ -21,3 +21,8 @@ Checked against the 2024-25 regular season: 26,306 player rows, 2,460 team rows,
 - 81 players played for more than one team in 2024-25 because of trades, so `team_id` goes on each game row, not on the player.
 - I'm using `ScoreboardV3`, not V2. `nba_api` warns that V2 has broken line scores for early 2025-26 games.
 - The box score (V3) uses different column names (`points`, `reboundsTotal`, `personId`) from `LeagueGameLog` (`PTS`, `REB`, `PLAYER_ID`). The transform maps both to one schema.
+
+## Phase 2: the database (Oct 14 2026)
+
+- Who started isn't in `LeagueGameLog`, only in the box score (the 5 players per team with a `position`). I load seasons from `LeagueGameLog` first, then fill in `starter` from box scores. That's about 14,000 calls, so it runs overnight and has to resume after failures.
+- The foreign key test first inserts a valid row, then checks the error message says FOREIGN KEY. My first version passed for the wrong reason: the row was missing required columns, which raised the same error type.
