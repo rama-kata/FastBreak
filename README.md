@@ -72,6 +72,58 @@ uv sync
 
 Then open `notebooks/01_explore.ipynb` in VS Code and pick the `.venv` kernel.
 
+## Development
+
+Run everything from the repo root.
+
+**Before every commit**
+
+```bash
+uv run ruff check --fix src tests    # lint, and fix what it can
+uv run ruff format src tests         # consistent formatting
+uv run pytest -q                     # all tests pass
+git diff                             # read what you're about to commit
+```
+
+**Dependencies**
+
+```bash
+uv add <package>         # a library the project needs
+uv add --dev <package>   # a tool only for development (tests, linting)
+uv sync                  # after pulling, or if .venv acts strange
+```
+
+Always go through `uv`, never `pip install`, so `uv.lock` stays the single
+source of truth.
+
+**Tests in more detail**
+
+```bash
+uv run pytest -v                           # each test by name
+uv run pytest tests/test_db.py -k reload   # one test
+uv run pytest -x                           # stop at the first failure
+uv run pytest --lf                         # rerun only what failed last time
+```
+
+**Looking inside the database** (once `data/nba.db` exists)
+
+```bash
+sqlite3 data/nba.db ".tables"
+sqlite3 data/nba.db ".schema games"
+sqlite3 -header -column data/nba.db "SELECT * FROM game_ingest WHERE status = 'failed' LIMIT 10"
+sqlite3 -header -column data/nba.db "SELECT season, COUNT(*) FROM games GROUP BY season"
+```
+
+**Git**
+
+```bash
+git status                 # first thing every session: anything unexpected?
+git restore <file>         # throw away uncommitted changes to a file
+git commit --amend         # fix the last commit, only if it isn't pushed yet
+```
+
+Never force-push to `main`, and never commit `data/` or `.env`.
+
 ## Project notes
 
 - [DECISIONS.md](DECISIONS.md): one line per decision and why
