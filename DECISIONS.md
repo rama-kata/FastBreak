@@ -26,3 +26,7 @@ Checked against the 2024-25 regular season: 26,306 player rows, 2,460 team rows,
 
 - Who started isn't in `LeagueGameLog`, only in the box score (the 5 players per team with a `position`). I load seasons from `LeagueGameLog` first, then fill in `starter` from box scores. That's about 14,000 calls, so it runs overnight and has to resume after failures.
 - The foreign key test first inserts a valid row, then checks the error message says FOREIGN KEY. My first version passed for the wrong reason: the row was missing required columns, which raised the same error type.
+
+## Phase 3: the pipeline (Oct 16 2026)
+
+- `nba_api` doesn't raise an error for a bad HTTP status. A blocked or failed request comes back as an error page, which only fails when it's parsed as JSON. So the fetcher retries `ValueError` as well as network errors, and nothing else, so real bugs crash straight away.
