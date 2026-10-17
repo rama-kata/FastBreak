@@ -30,3 +30,8 @@ Checked against the 2024-25 regular season: 26,306 player rows, 2,460 team rows,
 ## Phase 3: the pipeline (Oct 16 2026)
 
 - `nba_api` doesn't raise an error for a bad HTTP status. A blocked or failed request comes back as an error page, which only fails when it's parsed as JSON. So the fetcher retries `ValueError` as well as network errors, and nothing else, so real bugs crash straight away.
+- v1 skips Play-In and All-Star games. `LeagueGameLog` includes them, and the first digit of `SEASON_ID` says which (5 = Play-In, 3 = All-Star), so `transform.kept()` filters on it.
+- Transform functions return lists of rows, never dicts keyed by ID. A dict keyed by `player_id` keeps one game per player and silently drops the rest (569 rows instead of 26,306). Duplicates are the database's job, through primary keys.
+- Neutral-site games get their home team from `ScoreboardV3`'s `gameCode`, fetched only for those games (5 a season). `transform.games()` raises an error if one is missing, instead of guessing.
+- Reloading the game log keeps `starter`: the upsert uses `COALESCE(excluded.starter, player_game_stats.starter)`, because the game log always sends it empty.
+- Loaded the full 2024-25 regular season: 1,230 games, 26,306 player rows, 569 players, 5 neutral-site games, 56 single-overtime and 4 double-overtime games. All match the Phase 1 exploration.
