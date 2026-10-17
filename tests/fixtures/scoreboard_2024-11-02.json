@@ -1,0 +1,206 @@
+{
+ "meta": {
+  "version": 1,
+  "request": "http://nba.cloud/league/00/2024/11/02/scoreboard?Format=json",
+  "time": "2025-07-02T17:20:27.2027Z"
+ },
+ "scoreboard": {
+  "gameDate": "2024-11-02",
+  "leagueId": "00",
+  "leagueName": "National Basketball Association",
+  "games": [
+   {
+    "gameId": "0022400147",
+    "gameCode": "20241102/MIAWAS",
+    "gameStatus": 3,
+    "gameStatusText": "Final",
+    "period": 4,
+    "gameClock": "",
+    "gameTimeUTC": "2024-11-03T01:30:00Z",
+    "gameEt": "2024-11-02T21:30:00Z",
+    "regulationPeriods": 4,
+    "seriesGameNumber": "",
+    "gameLabel": "NBA Mexico City Game",
+    "gameSubLabel": "",
+    "seriesText": "Neutral Site",
+    "ifNecessary": false,
+    "seriesConference": "",
+    "poRoundDesc": "",
+    "gameSubtype": "Global Games",
+    "isNeutral": true,
+    "gameLeaders": {
+     "homeLeaders": {
+      "personId": 1641731,
+      "name": "Bilal Coulibaly",
+      "playerSlug": "bilal-coulibaly",
+      "jerseyNum": "0",
+      "position": "G",
+      "teamTricode": "WAS",
+      "points": 22,
+      "rebounds": 8,
+      "assists": 2
+     },
+     "awayLeaders": {
+      "personId": 1628389,
+      "name": "Bam Adebayo",
+      "playerSlug": "bam-adebayo",
+      "jerseyNum": "13",
+      "position": "C-F",
+      "teamTricode": "MIA",
+      "points": 32,
+      "rebounds": 14,
+      "assists": 2
+     }
+    },
+    "teamLeaders": {
+     "homeLeaders": {
+      "personId": 1629673,
+      "name": "Jordan Poole",
+      "playerSlug": "jordan-poole",
+      "jerseyNum": "13",
+      "position": "G",
+      "teamTricode": "WAS",
+      "points": 20.5,
+      "rebounds": 3.0,
+      "assists": 4.5
+     },
+     "awayLeaders": {
+      "personId": 1629639,
+      "name": "Tyler Herro",
+      "playerSlug": "tyler-herro",
+      "jerseyNum": "14",
+      "position": "G",
+      "teamTricode": "MIA",
+      "points": 23.9,
+      "rebounds": 5.2,
+      "assists": 5.5
+     },
+     "seasonLeadersFlag": 0
+    },
+    "broadcasters": {
+     "nationalBroadcasters": [
+      {
+       "broadcasterId": 7,
+       "broadcastDisplay": "NBA TV",
+       "broadcasterTeamId": -1,
+       "broadcasterDescription": ""
+      }
+     ],
+     "nationalRadioBroadcasters": [
+      {
+       "broadcasterId": 1001098,
+       "broadcastDisplay": "SiriusXM",
+       "broadcasterTeamId": -1,
+       "broadcasterDescription": ""
+      }
+     ],
+     "nationalOttBroadcasters": [],
+     "homeTvBroadcasters": [
+      {
+       "broadcasterId": 1001227,
+       "broadcastDisplay": "MNMT/MNMT2(S)",
+       "broadcasterTeamId": 1610612764,
+       "broadcasterDescription": ""
+      }
+     ],
+     "homeRadioBroadcasters": [
+      {
+       "broadcasterId": 1001049,
+       "broadcastDisplay": "WTEM/WFED",
+       "broadcasterTeamId": 1610612764,
+       "broadcasterDescription": ""
+      }
+     ],
+     "homeOttBroadcasters": [],
+     "awayTvBroadcasters": [
+      {
+       "broadcasterId": 1001240,
+       "broadcastDisplay": "FDSNSU",
+       "broadcasterTeamId": 1610612748,
+       "broadcasterDescription": ""
+      }
+     ],
+     "awayRadioBroadcasters": [
+      {
+       "broadcasterId": 1000851,
+       "broadcastDisplay": "WQAM/WAQI",
+       "broadcasterTeamId": 1610612748,
+       "broadcasterDescription": ""
+      }
+     ],
+     "awayOttBroadcasters": []
+    },
+    "homeTeam": {
+     "teamId": 1610612764,
+     "teamName": "Wizards",
+     "teamCity": "Washington",
+     "teamTricode": "WAS",
+     "teamSlug": "wizards",
+     "wins": 2,
+     "losses": 3,
+     "score": 98,
+     "seed": 0,
+     "inBonus": null,
+     "timeoutsRemaining": 1,
+     "periods": [
+      {
+       "period": 1,
+       "periodType": "REGULAR",
+       "score": 21
+      },
+      {
+       "period": 2,
+       "periodType": "REGULAR",
+       "score": 27
+      },
+      {
+       "period": 3,
+       "periodType": "REGULAR",
+       "score": 22
+      },
+      {
+       "period": 4,
+       "periodType": "REGULAR",
+       "score": 28
+      }
+     ]
+    },
+    "awayTeam": {
+     "teamId": 1610612748,
+     "teamName": "Heat",
+     "teamCity": "Miami",
+     "teamTricode": "MIA",
+     "teamSlug": "heat",
+     "wins": 3,
+     "losses": 2,
+     "score": 118,
+     "seed": 0,
+     "inBonus": null,
+     "timeoutsRemaining": 1,
+     "periods": [
+      {
+       "period": 1,
+       "periodType": "REGULAR",
+       "score": 31
+      },
+      {
+       "period": 2,
+       "periodType": "REGULAR",
+       "score": 25
+      },
+      {
+       "period": 3,
+       "periodType": "REGULAR",
+       "score": 33
+      },
+      {
+       "period": 4,
+       "periodType": "REGULAR",
+       "score": 29
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

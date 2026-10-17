@@ -154,6 +154,39 @@ def player_stats(player_rows):
     return out
 
 
+def boxscore_updates(data):
+    """(starter, seconds, game_id, player_id) for every player who played.
+
+    The box score is the only source for who started (the 5 players per team with a
+    position) and for exact minutes, which LeagueGameLog rounds.
+    """
+    box = data["boxScoreTraditional"]
+    out = []
+    for side in ("homeTeam", "awayTeam"):
+        team = box[side]
+        played = [p for p in team["players"] if p["statistics"]["minutes"]]
+        starters = sum(1 for p in played if p["position"])
+        if starters != 5:
+            raise ValueError(f"game {box['gameId']}: team {team['teamId']} has {starters} starters")
+        for p in played:
+            seconds = _seconds(p["statistics"]["minutes"])
+            out.append((bool(p["position"]), seconds, box["gameId"], p["personId"]))
+    return out
+
+
+def _seconds(minutes):
+    """'29:54' -> 1794. Anything else is a format change worth failing on."""
+    mins, _, secs = minutes.partition(":")
+    if not (mins.isdigit() and secs.isdigit()):
+        raise ValueError(f"unexpected minutes format: {minutes!r}")
+    return int(mins) * 60 + int(secs)
+
+
+def by_game(rows):
+    """Group game log rows by GAME_ID."""
+    return _by_game(rows)
+
+
 def _by_game(team_rows):
     grouped = defaultdict(list)
     for row in team_rows:

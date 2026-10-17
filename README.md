@@ -68,9 +68,16 @@ This is a non-commercial project, and no raw data is stored in this repo.
 
 ```bash
 uv sync
+uv run fastbreak load-seasons --from 2015-16   # game logs for every season (~2 minutes)
+uv run fastbreak boxscores --limit 500         # starters and exact minutes, newest games first
+uv run fastbreak status                        # games done, pending and failed per step
 ```
 
-Then open `notebooks/01_explore.ipynb` in VS Code and pick the `.venv` kernel.
+The box score step makes about 14,000 calls, roughly 4 hours. It can be stopped
+and restarted at any time: it carries on from the games that aren't done yet.
+
+To explore the data, open `notebooks/01_explore.ipynb` in VS Code and pick the
+`.venv` kernel.
 
 ## Development
 

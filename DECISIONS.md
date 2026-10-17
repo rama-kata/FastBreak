@@ -35,3 +35,9 @@ Checked against the 2024-25 regular season: 26,306 player rows, 2,460 team rows,
 - Neutral-site games get their home team from `ScoreboardV3`'s `gameCode`, fetched only for those games (5 a season). `transform.games()` raises an error if one is missing, instead of guessing.
 - Reloading the game log keeps `starter`: the upsert uses `COALESCE(excluded.starter, player_game_stats.starter)`, because the game log always sends it empty.
 - Loaded the full 2024-25 regular season: 1,230 games, 26,306 player rows, 569 players, 5 neutral-site games, 56 single-overtime and 4 double-overtime games. All match the Phase 1 exploration.
+- Each game is validated on its own when a season loads. A broken game is marked `failed` in `game_ingest` with the reason, and the rest of the season still loads.
+- The box score step picks up every game whose game log is done and whose box score isn't, newest first. That query is what makes it resumable: a crash or restart continues where it stopped and never refetches a finished game.
+- A game that fails 3 times is left for me to look at. After 10 failed calls in a row the run stops, because that almost always means NBA.com has blocked us.
+- Once the box score has loaded, a game log reload keeps its exact seconds as well as `starter`. My first version of the upsert overwrote exact seconds with rounded minutes on every reload.
+- `is_neutral` is only complete from 2024-25 on. Earlier neutral-site games, including the 2019-20 Orlando bubble, list a designated home team with "vs.", so they look like normal home games. Fixing it would mean one `ScoreboardV3` call per game date (about 1,800 calls); v1 doesn't need it.
+- Loaded every season from 2015-16 in 100 seconds: 14,128 games, 300,879 player rows, 1,556 players, none failed. 2019-20 (1,059 games) and 2020-21 (1,080) are short because of COVID.
