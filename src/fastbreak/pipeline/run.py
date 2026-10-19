@@ -1,5 +1,7 @@
 """The pipeline: fetch, transform and load, with progress recorded so any run can resume."""
 
+import fcntl
+from contextlib import contextmanager
 from datetime import UTC, date, datetime
 
 from nba_api.stats.endpoints import boxscoretraditionalv3, leaguegamelog, scoreboardv3
@@ -38,11 +40,49 @@ def start_run(conn, kind):
 
 
 def finish_run(conn, run_id, status, error=None):
+    """Record how a run ended. Only the first call counts, so the reason a run stopped isn't overwritten."""
     with conn:
         conn.execute(
-            "UPDATE ingest_runs SET finished_at = ?, status = ?, error = ? WHERE run_id = ?",
+            "UPDATE ingest_runs SET finished_at = ?, status = ?, error = ?"
+            " WHERE run_id = ? AND status = 'running'",
             (now(), status, error, run_id),
         )
+
+
+class RunInProgress(Exception):
+    """Another run is already writing to this database."""
+
+
+@contextmanager
+def tracked_run(conn, kind):
+    """One run at a time per database, and every run records how it ended.
+
+    The lock is a flock on <db>.lock, which the OS releases when the process dies, even on kill -9.
+    So whoever holds it knows any run still marked 'running' is dead, and closes those first.
+    """
+    path = conn.execute("PRAGMA database_list").fetchone()[2]
+    with open(f"{path}.lock", "w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RunInProgress(f"another run is already writing to {path}") from None
+        with conn:
+            conn.execute(
+                "UPDATE ingest_runs SET finished_at = ?, status = 'failed',"
+                " error = 'interrupted: the process died before recording how it ended'"
+                " WHERE status = 'running'",
+                (now(),),
+            )
+        run_id = start_run(conn, kind)
+        try:
+            yield run_id
+        except KeyboardInterrupt:  # Ctrl-C, or kill / SIGTERM through the CLI's handler
+            finish_run(conn, run_id, "failed", "interrupted: stopped by Ctrl-C or kill")
+            raise
+        except BaseException as e:
+            finish_run(conn, run_id, "failed", f"crashed: {type(e).__name__}: {e}")
+            raise
+        finish_run(conn, run_id, "ok")
 
 
 def mark(conn, game_id, step, status, error=None):
@@ -112,16 +152,15 @@ def ingest_season(conn, fetcher, season, season_type):
 
 def ingest_seasons(conn, fetcher, first="2015-16", today=None, log=print):
     """Load every season's game logs from `first` to today."""
-    run_id = start_run(conn, "season")
-    try:
-        for season in seasons_from(first, today):
-            for season_type in SEASON_TYPES:
-                loaded, failed = ingest_season(conn, fetcher, season, season_type)
-                log(f"{season} {season_type}: {loaded} games loaded, {failed} failed")
-    except FetchError as e:
-        finish_run(conn, run_id, "failed", str(e))
-        raise
-    finish_run(conn, run_id, "ok")
+    with tracked_run(conn, "season") as run_id:
+        try:
+            for season in seasons_from(first, today):
+                for season_type in SEASON_TYPES:
+                    loaded, failed = ingest_season(conn, fetcher, season, season_type)
+                    log(f"{season} {season_type}: {loaded} games loaded, {failed} failed")
+        except FetchError as e:
+            finish_run(conn, run_id, "failed", str(e))
+            raise
 
 
 def pending_boxscores(conn, limit=None):
@@ -142,34 +181,33 @@ def pending_boxscores(conn, limit=None):
 
 def ingest_boxscores(conn, fetcher, limit=None, max_failures_in_row=10, log=print):
     """Fill in starters and exact seconds. Resumes from whatever isn't done yet."""
-    run_id = start_run(conn, "boxscores")
-    done = failed = in_a_row = 0
-    for game_id in pending_boxscores(conn, limit):
-        try:
-            data = fetcher.get(boxscoretraditionalv3.BoxScoreTraditionalV3, game_id=game_id)
-            apply_boxscore(conn, transform.boxscore_updates(data))
-        except FetchError as e:  # NBA.com didn't answer, even after retries
-            mark(conn, game_id, "boxscore", "failed", str(e))
-            failed += 1
-            in_a_row += 1
-            if in_a_row >= max_failures_in_row:
-                error = f"stopped after {in_a_row} failed calls in a row: probably blocked"
-                log(error)
-                finish_run(conn, run_id, "failed", error)
-                return done, failed
-            continue
-        except ValueError as e:  # the data itself is wrong; not a sign of being blocked
-            mark(conn, game_id, "boxscore", "failed", str(e))
-            failed += 1
-            continue
-        mark(conn, game_id, "boxscore", "done")
-        done += 1
-        in_a_row = 0
-        if done % 100 == 0:
-            log(f"{done} box scores loaded, {failed} failed")
-    log(f"finished: {done} box scores loaded, {failed} failed")
-    finish_run(conn, run_id, "ok")
-    return done, failed
+    with tracked_run(conn, "boxscores") as run_id:
+        done = failed = in_a_row = 0
+        for game_id in pending_boxscores(conn, limit):
+            try:
+                data = fetcher.get(boxscoretraditionalv3.BoxScoreTraditionalV3, game_id=game_id)
+                apply_boxscore(conn, transform.boxscore_updates(data))
+            except FetchError as e:  # NBA.com didn't answer, even after retries
+                mark(conn, game_id, "boxscore", "failed", str(e))
+                failed += 1
+                in_a_row += 1
+                if in_a_row >= max_failures_in_row:
+                    error = f"stopped after {in_a_row} failed calls in a row: probably blocked"
+                    log(error)
+                    finish_run(conn, run_id, "failed", error)
+                    return done, failed
+                continue
+            except ValueError as e:  # the data itself is wrong; not a sign of being blocked
+                mark(conn, game_id, "boxscore", "failed", str(e))
+                failed += 1
+                continue
+            mark(conn, game_id, "boxscore", "done")
+            done += 1
+            in_a_row = 0
+            if done % 100 == 0:
+                log(f"{done} box scores loaded, {failed} failed")
+        log(f"finished: {done} box scores loaded, {failed} failed")
+        return done, failed
 
 
 def status(conn):
