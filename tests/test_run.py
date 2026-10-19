@@ -1,9 +1,13 @@
 import json
+import os
+import signal
+import time
 from datetime import date
 from pathlib import Path
 
 import pytest
 
+from fastbreak import cli
 from fastbreak.db import connect, init_db
 from fastbreak.pipeline import run
 from fastbreak.pipeline.fetch import FetchError
@@ -151,3 +155,68 @@ def test_it_stops_after_too_many_failures_in_a_row(db):
     last_run = db.execute("SELECT status, error FROM ingest_runs ORDER BY run_id DESC").fetchone()
     assert last_run[0] == "failed"
     assert "probably blocked" in last_run[1]
+
+
+def last_run(db):
+    return db.execute("SELECT status, error FROM ingest_runs ORDER BY run_id DESC").fetchone()
+
+
+def test_a_stopped_run_records_that_it_was_interrupted(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    with pytest.raises(KeyboardInterrupt):
+        run.ingest_boxscores(db, FakeFetcher(crash_after=1), log=lambda _: None)
+    status, error = last_run(db)
+    assert status == "failed"
+    assert error.startswith("interrupted")
+
+
+def test_a_crashed_run_records_why(db, monkeypatch):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+
+    def broken(conn, updates):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(run, "apply_boxscore", broken)
+    with pytest.raises(RuntimeError):
+        run.ingest_boxscores(db, FakeFetcher(), log=lambda _: None)
+    assert last_run(db) == ("failed", "crashed: RuntimeError: disk full")
+
+
+def test_blocked_keeps_its_reason_instead_of_ok(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    run.ingest_boxscores(db, FakeFetcher(failing=GAMES), max_failures_in_row=2, log=lambda _: None)
+    assert "probably blocked" in last_run(db)[1]
+
+
+def test_a_second_run_is_refused_while_one_is_going(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    second = FakeFetcher()
+    with run.tracked_run(db, "boxscores"), pytest.raises(run.RunInProgress):
+        run.ingest_boxscores(db, second, log=lambda _: None)
+    assert second.boxscore_calls == []
+    assert db.execute("SELECT COUNT(*) FROM ingest_runs WHERE kind = 'boxscores'").fetchone() == (
+        1,
+    )
+
+
+def test_a_run_left_running_by_a_dead_process_is_closed_by_the_next_one(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    dead = run.start_run(db, "boxscores")  # kill -9 or a power cut: nothing recorded the end
+    run.ingest_boxscores(db, FakeFetcher(), log=lambda _: None)
+    status, finished, error = db.execute(
+        "SELECT status, finished_at, error FROM ingest_runs WHERE run_id = ?", (dead,)
+    ).fetchone()
+    assert (status, finished is not None) == ("failed", True)
+    assert "process died" in error
+    assert last_run(db) == ("ok", None)
+
+
+def test_kill_stops_a_run_like_ctrl_c():
+    previous = signal.getsignal(signal.SIGTERM)
+    try:
+        cli.stop_on_sigterm()
+        with pytest.raises(KeyboardInterrupt):
+            os.kill(os.getpid(), signal.SIGTERM)
+            time.sleep(1)  # the handler runs here, almost immediately
+    finally:
+        signal.signal(signal.SIGTERM, previous)
