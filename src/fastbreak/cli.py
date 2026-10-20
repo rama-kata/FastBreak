@@ -31,6 +31,12 @@ def main():
 
     boxscores = commands.add_parser("boxscores", help="fill in starters and exact minutes")
     boxscores.add_argument("--limit", type=int, help="stop after this many games")
+    boxscores.add_argument(
+        "--max-failures-in-row",
+        type=int,
+        default=run.MAX_FAILURES_IN_ROW,
+        help=f"stop after this many failed games in a row (default {run.MAX_FAILURES_IN_ROW})",
+    )
 
     commands.add_parser("status", help="show pipeline progress")
 
@@ -44,7 +50,9 @@ def main():
         if args.command == "load-seasons":
             run.ingest_seasons(conn, fetcher, first=args.first)
         elif args.command == "boxscores":
-            run.ingest_boxscores(conn, fetcher, limit=args.limit)
+            run.ingest_boxscores(
+                conn, fetcher, limit=args.limit, max_failures_in_row=args.max_failures_in_row
+            )
         else:
             print_status(conn)
     except run.RunInProgress as e:
