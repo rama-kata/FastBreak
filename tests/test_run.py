@@ -182,6 +182,14 @@ def test_a_crashed_run_records_why(db, monkeypatch):
     assert last_run(db) == ("failed", "crashed: RuntimeError: disk full")
 
 
+def test_by_default_it_stops_after_two_failures_in_a_row(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    blocked = FakeFetcher(failing=GAMES)
+    run.ingest_boxscores(db, blocked, log=lambda _: None)
+    assert len(blocked.boxscore_calls) == 2
+    assert "2 failed calls in a row" in last_run(db)[1]
+
+
 def test_blocked_keeps_its_reason_instead_of_ok(db):
     run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
     run.ingest_boxscores(db, FakeFetcher(failing=GAMES), max_failures_in_row=2, log=lambda _: None)

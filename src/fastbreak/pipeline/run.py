@@ -12,6 +12,8 @@ from fastbreak.pipeline.load import apply_boxscore, load_season
 
 SEASON_TYPES = ("Regular Season", "Playoffs")
 MAX_ATTEMPTS = 3  # a game that fails this many times is left for a person to look at
+# Each failed game has already been retried 5 times, so 2 in a row means NBA.com is blocking us.
+MAX_FAILURES_IN_ROW = 2
 
 
 def now():
@@ -179,7 +181,7 @@ def pending_boxscores(conn, limit=None):
     return [r[0] for r in rows]
 
 
-def ingest_boxscores(conn, fetcher, limit=None, max_failures_in_row=10, log=print):
+def ingest_boxscores(conn, fetcher, limit=None, max_failures_in_row=MAX_FAILURES_IN_ROW, log=print):
     """Fill in starters and exact seconds. Resumes from whatever isn't done yet."""
     with tracked_run(conn, "boxscores") as run_id:
         done = failed = in_a_row = 0
