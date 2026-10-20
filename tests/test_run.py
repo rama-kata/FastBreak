@@ -299,6 +299,12 @@ def test_a_failed_recheck_keeps_a_loaded_box_score_done(db):
     assert steps(db, "boxscore")["0022400147"][0] == "done"
 
 
+def test_recent_games_stop_at_today(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    # the night after opening night: the Oct 23 and Nov 2 games haven't happened yet
+    assert run.recent_games(db, date(2024, 10, 22), days=3) == ["0022400061"]
+
+
 def test_the_current_season_starts_in_october():
     assert run.current_season(date(2026, 9, 30)) == "2025-26"
     assert run.current_season(date(2026, 10, 1)) == "2026-27"

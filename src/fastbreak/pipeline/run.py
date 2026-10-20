@@ -194,8 +194,9 @@ def recent_games(conn, today, days):
     """Games played in the last `days` days up to today, newest first."""
     since = (today - timedelta(days=days)).isoformat()
     rows = conn.execute(
-        "SELECT game_id FROM games WHERE game_date >= ? ORDER BY game_date DESC, game_id DESC",
-        (since,),
+        "SELECT game_id FROM games WHERE game_date BETWEEN ? AND ?"
+        " ORDER BY game_date DESC, game_id DESC",
+        (since, today.isoformat()),
     )
     return [r[0] for r in rows]
 
