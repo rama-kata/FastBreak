@@ -28,9 +28,12 @@ class FakeFetcher:
         self.failing = set(failing)
         self.crash_after = crash_after
         self.boxscore_calls = []
+        self.refreshed = []  # endpoint names called with refresh=True, skipping the cache
 
     def get(self, endpoint_cls, refresh=False, **params):
         name = endpoint_cls.__name__
+        if refresh:
+            self.refreshed.append(name)
         if name == "LeagueGameLog":
             if (params["season"], params["season_type_all_star"]) != ("2024-25", "Regular Season"):
                 return EMPTY
@@ -228,3 +231,81 @@ def test_kill_stops_a_run_like_ctrl_c():
             time.sleep(1)  # the handler runs here, almost immediately
     finally:
         signal.signal(signal.SIGTERM, previous)
+
+
+NIGHT_AFTER_MEXICO_CITY = date(2024, 11, 3)  # only 0022400147 (Nov 2) is in the last 3 days
+
+
+class CorrectedFetcher(FakeFetcher):
+    """The game log the day after: one player's assists corrected from the first load."""
+
+    def get(self, endpoint_cls, refresh=False, **params):
+        data = super().get(endpoint_cls, refresh=refresh, **params)
+        if (
+            endpoint_cls.__name__ == "LeagueGameLog"
+            and params["player_or_team_abbreviation"] == "P"
+        ):
+            table = data["resultSets"][0]
+            if table["rowSet"]:
+                first = list(table["rowSet"][0])
+                first[table["headers"].index("AST")] += 1
+                table["rowSet"] = [first, *table["rowSet"][1:]]
+        return data
+
+
+def test_nightly_loads_the_season_and_only_recent_box_scores(db):
+    fetcher = FakeFetcher()
+    run.ingest_nightly(db, fetcher, today=NIGHT_AFTER_MEXICO_CITY, log=lambda _: None)
+    assert db.execute("SELECT COUNT(*) FROM games").fetchone() == (len(GAMES),)
+    assert fetcher.boxscore_calls == ["0022400147"]
+    assert run.pending_boxscores(db) == ["0022400071", "0022400061"]  # left for the backfill
+    assert db.execute("SELECT kind, status FROM ingest_runs ORDER BY run_id DESC").fetchone() == (
+        "nightly",
+        "ok",
+    )
+
+
+def test_nightly_skips_the_cache(db):
+    fetcher = FakeFetcher()
+    run.ingest_nightly(db, fetcher, today=NIGHT_AFTER_MEXICO_CITY, log=lambda _: None)
+    assert fetcher.refreshed.count("LeagueGameLog") == 2 * len(run.SEASON_TYPES)
+    assert "BoxScoreTraditionalV3" in fetcher.refreshed
+
+
+def test_nightly_picks_up_a_stat_correction_and_keeps_box_score_fields(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    run.ingest_boxscores(db, FakeFetcher(), log=lambda _: None)
+    before = db.execute(
+        "SELECT game_id, player_id, ast, starter, seconds FROM player_game_stats"
+        " ORDER BY rowid LIMIT 1"
+    ).fetchone()
+
+    run.ingest_nightly(db, CorrectedFetcher(), today=NIGHT_AFTER_MEXICO_CITY, log=lambda _: None)
+    after = db.execute(
+        "SELECT ast, starter, seconds FROM player_game_stats WHERE game_id = ? AND player_id = ?",
+        before[:2],
+    ).fetchone()
+    assert after == (before[2] + 1, before[3], before[4])
+
+
+def test_a_failed_recheck_keeps_a_loaded_box_score_done(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    run.ingest_boxscores(db, FakeFetcher(), log=lambda _: None)
+    nightly = FakeFetcher(failing={"0022400147"})
+    assert run.ingest_nightly(db, nightly, today=NIGHT_AFTER_MEXICO_CITY, log=lambda _: None) == (
+        0,
+        1,
+    )
+    assert steps(db, "boxscore")["0022400147"][0] == "done"
+
+
+def test_recent_games_stop_at_today(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    # the night after opening night: the Oct 23 and Nov 2 games haven't happened yet
+    assert run.recent_games(db, date(2024, 10, 22), days=3) == ["0022400061"]
+
+
+def test_the_current_season_starts_in_october():
+    assert run.current_season(date(2026, 9, 30)) == "2025-26"
+    assert run.current_season(date(2026, 10, 1)) == "2026-27"
+    assert run.current_season(date(2027, 3, 1)) == "2026-27"

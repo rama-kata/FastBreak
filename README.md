@@ -76,6 +76,28 @@ uv run fastbreak status                        # games done, pending and failed 
 The box score step makes about 14,000 calls, roughly 4 hours. It can be stopped
 and restarted at any time: it carries on from the games that aren't done yet.
 
+**Every night**
+
+```bash
+uv run fastbreak nightly             # this season's new games and corrections
+```
+
+It re-fetches the current season's game log, which brings new games and any
+corrected stats, then the box scores from the last 3 days (`--days` changes it).
+Older missing box scores are left to `fastbreak boxscores`. Only one run can
+write to the database at a time, so while a backfill is running it is refused
+and runs again the next morning.
+
+To run it every morning at 09:00 with a systemd user timer:
+
+```bash
+cp deploy/systemd/fastbreak-nightly.* ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now fastbreak-nightly.timer
+systemctl --user list-timers fastbreak-nightly.timer   # when it runs next
+journalctl --user -u fastbreak-nightly                 # what happened last time
+```
+
 To explore the data, open `notebooks/01_explore.ipynb` in VS Code and pick the
 `.venv` kernel.
 

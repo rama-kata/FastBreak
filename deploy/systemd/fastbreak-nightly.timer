@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the FastBreak nightly pipeline every morning
+
+[Timer]
+# 09:00 local time: every game from the night before is final, and most corrections are in.
+OnCalendar=*-*-* 09:00
+# If the machine was off at 09:00, run as soon as it's back on.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

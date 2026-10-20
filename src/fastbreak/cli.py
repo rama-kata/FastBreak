@@ -1,4 +1,4 @@
-"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | status>."""
+"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status>."""
 
 import argparse
 import signal
@@ -38,6 +38,14 @@ def main():
         help=f"stop after this many failed games in a row (default {run.MAX_FAILURES_IN_ROW})",
     )
 
+    nightly = commands.add_parser("nightly", help="new games and corrections for this season")
+    nightly.add_argument(
+        "--days",
+        type=int,
+        default=run.NIGHTLY_DAYS,
+        help=f"re-check box scores from this many days back (default {run.NIGHTLY_DAYS})",
+    )
+
     commands.add_parser("status", help="show pipeline progress")
 
     args = parser.parse_args()
@@ -53,6 +61,8 @@ def main():
             run.ingest_boxscores(
                 conn, fetcher, limit=args.limit, max_failures_in_row=args.max_failures_in_row
             )
+        elif args.command == "nightly":
+            run.ingest_nightly(conn, fetcher, days=args.days)
         else:
             print_status(conn)
     except run.RunInProgress as e:
