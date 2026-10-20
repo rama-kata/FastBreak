@@ -1,0 +1,11 @@
+[Unit]
+Description=FastBreak: new NBA games and stat corrections for the current season
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/FastBreak
+ExecStart=%h/.local/bin/uv run fastbreak nightly
+# A blocked NBA.com can hang instead of failing. The stop signal is recorded as "interrupted".
+TimeoutStartSec=1h
