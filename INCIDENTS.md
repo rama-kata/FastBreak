@@ -13,6 +13,13 @@ Format for each one:
 - Test that now catches it:
 ```
 
+## 2026-10-20: a game still being played was recorded as failed
+- What happened: the first `fastbreak nightly` run under systemd, on 2026-27 opening night, reported "0 games in the game log, 1 failed". BOS @ DET (`0022600001`) was in the first quarter.
+- Impact: none on the data. The game was refused, not stored, and marked `failed`. A run late in a game could have stored partial stats until the next morning's refresh corrected them.
+- Cause: `LeagueGameLog` lists games while they're being played, with `WL` empty and partial minutes. 0 team minutes made `overtimes` -10, which validation refused.
+- Fix: `transform.kept()` skips rows with no result. Checked against every cached season since 2015-16: the only rows with no result were that game's 21.
+- Test that now catches it: `test_a_game_still_being_played_is_skipped` in `tests/test_transform.py`.
+
 ## 2026-10-19: box score runs stuck on "running", two of them at once
 - What happened: `fastbreak status` showed runs #14, #15 and #16 as `running` with no process behind any of them. #15 and #16 had been started 16 minutes apart and were both fetching at the same time until they were killed; #14 had died earlier without a trace.
 - Impact: status said work was in progress when nothing was. Two runs at once doubled the request rate on NBA.com, which had already blocked runs #12 and #13. No box score data was lost: each game is recorded as it loads.
