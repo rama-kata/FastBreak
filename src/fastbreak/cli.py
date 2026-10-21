@@ -1,9 +1,10 @@
-"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status>."""
+"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions>."""
 
 import argparse
 import signal
 import sys
 
+from fastbreak import evals
 from fastbreak.db import connect, init_db
 from fastbreak.pipeline import run
 from fastbreak.pipeline.fetch import Fetcher
@@ -48,6 +49,14 @@ def main():
 
     commands.add_parser("status", help="show pipeline progress")
 
+    questions = commands.add_parser("questions", help="the test set in evals/questions.toml")
+    actions = questions.add_subparsers(dest="action", required=True)
+    actions.add_parser("check", help="run every question's SQL and compare to its saved answer")
+    freeze = actions.add_parser("freeze", help="save answers for questions that don't have one")
+    freeze.add_argument("--id", help="save this draft question's answer again, replacing it")
+    show = actions.add_parser("show", help="one question, its SQL and its answer, for review")
+    show.add_argument("id")
+
     args = parser.parse_args()
     conn = connect(args.db)
     init_db(conn)
@@ -63,6 +72,8 @@ def main():
             )
         elif args.command == "nightly":
             run.ingest_nightly(conn, fetcher, days=args.days)
+        elif args.command == "questions":
+            questions_command(conn, args)
         else:
             print_status(conn)
     except run.RunInProgress as e:
@@ -79,3 +90,40 @@ def print_status(conn):
     print("\nrecent runs")
     for run_id, kind, started, finished, state, error in runs:
         print(f"#{run_id} {kind:<9} {state:<8} {started} -> {finished or '...'}  {error or ''}")
+
+
+def questions_command(conn, args):
+    questions = evals.load_questions()
+    by_id = {q.id: q for q in questions}
+    if args.action == "check":
+        results = evals.check(conn, questions)
+        for q, problem in results:
+            print(f"{'ok ' if problem is None else 'BAD'} {q.status:<8} {q.id}  {problem or ''}")
+        approved = sum(q.status == "approved" for q in questions)
+        bad = sum(problem is not None for _, problem in results)
+        print(f"\n{len(questions)} questions, {approved} approved, {bad} with problems")
+        if bad:
+            sys.exit(1)
+    elif args.action == "freeze":
+        if args.id:
+            q = by_id[args.id]
+            if q.status == "approved":
+                sys.exit(f"{q.id} is approved. Set it back to draft first if the answer is wrong.")
+            targets = [q]
+        else:
+            targets = [q for q in questions if q.frozen and evals.frozen_answer(q) is None]
+        for q in targets:
+            rows = evals.freeze(conn, q)
+            print(f"saved {q.id}: {len(rows)} row(s)")
+        print(f"{len(targets)} answer(s) saved in {evals.ANSWERS}/")
+    else:
+        q = by_id[args.id]
+        print(f"{q.id}  [{q.category}, {q.difficulty}, {q.status}]\n\n{q.question}\n")
+        if q.notes:
+            print(f"notes: {q.notes}\n")
+        print(q.sql.strip() + "\n")
+        saved = evals.frozen_answer(q)
+        rows = saved if saved is not None else evals.run_sql(conn, q.sql)
+        print("saved answer:" if saved is not None else "answer (not saved yet):")
+        for row in rows:
+            print("  ", row)

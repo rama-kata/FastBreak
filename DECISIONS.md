@@ -47,3 +47,14 @@ Checked against the 2024-25 regular season: 26,306 player rows, 2,460 team rows,
 - Box scores only carry `starter` and exact seconds, so the nightly run re-fetches them for the last 3 days only, which is when minutes get corrected. Older missing box scores stay with `fastbreak boxscores`, so a nightly run stays a few dozen calls even during a backfill.
 - A re-check that fails never marks an already loaded box score as `failed`. Its data is still good; only the check for a correction didn't get through.
 - The nightly run is scheduled with a systemd user timer at 09:00 local time, with `Persistent=true` so a morning the laptop was off still gets a run when it's back on. `journalctl` keeps each run's output.
+
+## Phase 4: the test set (Oct 20 2026)
+
+- Questions live in one TOML file. Python reads it with no extra dependency, and the SQL stays readable across several lines, which JSON doesn't allow.
+- An answer is correct when the agent's query returns the same rows as the question's SQL, not when its text looks right. Column names and order don't matter and extra columns are allowed, so an agent that also returns a player ID or team still counts. Missing or extra rows are wrong.
+- Numbers match within 0.05 by default, so an average reported to one decimal place counts. Questions about fractions set a tighter tolerance.
+- Questions that shouldn't change say "2015-16 to 2025-26" and filter on those seasons. Otherwise the nightly load would move the answer and a checked answer would quietly become wrong.
+- The answer each SQL returns is saved in `evals/answers/`, and `fastbreak questions check` fails if the SQL stops returning it, for example after an edit to the SQL or a change in the data. An approved question's answer can't be overwritten by `freeze`.
+- Top-N questions are checked for a tie at the cutoff. "Top five 50-point scorers" had 5th and 6th tied on 9, so it became top four.
+- Every question starts as a draft. I drafted all 50 with Claude Code; each one counts only after I've checked its answer and set it to approved.
+- Checked against outside sources while drafting: Bam Adebayo's 83 points (2026-03-10), Dennis Schröder's 11 teams played for (his 12th, Charlotte, has no games yet), and the streak SQL, which returns Sabonis's 61 straight double-doubles for 2023-24, the streak ESPN reports.
