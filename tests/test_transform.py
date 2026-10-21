@@ -108,6 +108,14 @@ def test_play_in_and_all_star_are_skipped(team_rows):
     assert transform.kept([play_in, all_star, team_rows[1]]) == [team_rows[1]]
 
 
+def test_a_game_still_being_played_is_skipped(team_rows, player_rows):
+    # opening night 2026-27, fetched in the first quarter: no result yet, 0 team minutes
+    live_team = {**team_rows[0], "WL": None, "MIN": 0}
+    live_player = {**player_rows[0], "WL": None}
+    assert transform.kept([live_team, team_rows[1]]) == [team_rows[1]]
+    assert transform.kept([live_player, player_rows[1]]) == [player_rows[1]]
+
+
 def test_teams_and_players_are_unique(team_rows, player_rows):
     assert len(transform.teams(team_rows)) == 6
     ids = [p[0] for p in transform.players(player_rows)]

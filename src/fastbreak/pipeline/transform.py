@@ -62,8 +62,12 @@ def season_type(row):
 
 
 def kept(rows):
-    """Drop Play-In, All-Star and anything else outside v1's scope."""
-    return [row for row in rows if season_type(row)]
+    """Drop Play-In, All-Star and anything else outside v1's scope, and unfinished games.
+
+    The game log lists a game while it's still being played, with no result (WL) and
+    partial stats. It's loaded the next time the game log is fetched after it ends.
+    """
+    return [row for row in rows if season_type(row) and row["WL"] is not None]
 
 
 def teams(team_rows):
