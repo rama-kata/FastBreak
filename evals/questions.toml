@@ -1,0 +1,735 @@
+# FastBreak test set: questions with the SQL that answers them.
+#
+# Fields
+#   id          short, unique, never reused
+#   question    what a user would type
+#   sql         the query whose rows are the correct answer
+#   category    lookup | ranking | count | split | team | streak | edge
+#   difficulty  simple (small local model) | hard (large model)
+#   status      draft until a person has checked the answer, then approved.
+#               Only approved questions count towards the score.
+#   ordered     true when the order of the rows is part of the answer (default false)
+#   frozen      false for current-season questions, whose answer changes (default true)
+#   tolerance   how close numbers must be (default 0.05: averages to 1 decimal)
+#   notes       how the answer was checked, and anything a reviewer should know
+#
+# Answers that shouldn't change say "2015-16 to 2025-26" and filter on those seasons, so
+# the nightly load can't move them. A frozen answer lives in evals/answers/<id>.json.
+#
+# Shared definitions
+#   minutes        seconds / 60.0
+#   off the bench  starter = 0
+#   double-double  10+ in at least two of pts, reb, ast, stl, blk (three for a triple-double)
+#   per game       over the games a player appeared in
+#   a team's game  its points and the opponent's come from games.home_pts / away_pts
+
+# --- lookup: one fact about one player or game ---------------------------------------
+
+[[question]]
+id = "curry-ppg-2015-16"
+question = "What was Stephen Curry's points per game in the 2015-16 regular season?"
+category = "lookup"
+difficulty = "simple"
+sql = """
+SELECT ROUND(AVG(s.pts), 1) AS ppg
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 201939 AND g.season = '2015-16' AND g.season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "klay-60-points"
+question = "How many points did Klay Thompson score on December 5, 2016?"
+category = "lookup"
+difficulty = "simple"
+sql = """
+SELECT s.pts
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 202691 AND g.game_date = '2016-12-05'
+"""
+
+[[question]]
+id = "luka-73"
+question = "How many points did Luka Doncic score against the Hawks on January 26, 2024?"
+category = "lookup"
+difficulty = "simple"
+notes = "Asked without the accent: the stored name is Luka Dončić."
+sql = """
+SELECT s.pts
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 1629029 AND g.game_date = '2024-01-26'
+"""
+
+[[question]]
+id = "booker-70-minutes"
+question = "How many minutes did Devin Booker play in his 70-point game?"
+category = "lookup"
+difficulty = "simple"
+sql = """
+SELECT ROUND(s.seconds / 60.0, 1) AS minutes
+FROM player_game_stats s
+WHERE s.player_id = 1626164 AND s.pts = 70
+"""
+
+[[question]]
+id = "finals-2024-game-5-score"
+question = "What was the final score when the Celtics played the Mavericks on June 17, 2024?"
+category = "lookup"
+difficulty = "simple"
+sql = """
+SELECT home.abbreviation AS home, g.home_pts, away.abbreviation AS away, g.away_pts
+FROM games g
+JOIN teams home ON home.team_id = g.home_team_id
+JOIN teams away ON away.team_id = g.away_team_id
+WHERE g.game_date = '2024-06-17' AND 'BOS' IN (home.abbreviation, away.abbreviation)
+"""
+
+[[question]]
+id = "westbrook-line-2016-17"
+question = "What were Russell Westbrook's points, rebounds and assists per game in the 2016-17 regular season?"
+category = "lookup"
+difficulty = "simple"
+sql = """
+SELECT ROUND(AVG(s.pts), 1) AS ppg, ROUND(AVG(s.reb), 1) AS rpg, ROUND(AVG(s.ast), 1) AS apg
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 201566 AND g.season = '2016-17' AND g.season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "jokic-games-2023-24"
+question = "How many regular season games did Nikola Jokic play in 2023-24?"
+category = "lookup"
+difficulty = "simple"
+notes = "Asked without the accent: the stored name is Nikola Jokić."
+sql = """
+SELECT COUNT(*) AS games
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 203999 AND g.season = '2023-24' AND g.season_type = 'Regular Season'
+"""
+
+# --- ranking: who is top ------------------------------------------------------------
+
+[[question]]
+id = "most-points-single-game"
+notes = "Checked: Bam Adebayo, 83 vs WAS on 2026-03-10 (https://en.wikipedia.org/wiki/Bam_Adebayo%27s_83-point_game)."
+question = "What is the most points scored by a player in a single game from 2015-16 to 2025-26, and who scored it?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, g.game_date, s.pts
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season BETWEEN '2015-16' AND '2025-26'
+  AND s.pts = (SELECT MAX(s2.pts) FROM player_game_stats s2 JOIN games g2 USING (game_id)
+               WHERE g2.season BETWEEN '2015-16' AND '2025-26')
+"""
+
+[[question]]
+id = "most-50-point-games"
+notes = "Four, not five: 5th and 6th are tied on 9 (Dončić and Embiid)."
+question = "Which four players had the most 50-point games from 2015-16 to 2025-26, regular season and playoffs, and how many each?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, COUNT(*) AS games
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE s.pts >= 50 AND g.season BETWEEN '2015-16' AND '2025-26'
+GROUP BY s.player_id ORDER BY games DESC LIMIT 4
+"""
+
+[[question]]
+id = "most-threes-total"
+question = "Who made the most three-pointers in regular season games from 2015-16 to 2025-26, and how many?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, SUM(s.fg3m) AS threes
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+GROUP BY s.player_id ORDER BY threes DESC LIMIT 1
+"""
+
+[[question]]
+id = "most-assists-single-game"
+question = "What is the most assists by a player in one game from 2015-16 to 2025-26, and who had it?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, g.game_date, s.ast
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season BETWEEN '2015-16' AND '2025-26'
+  AND s.ast = (SELECT MAX(s2.ast) FROM player_game_stats s2 JOIN games g2 USING (game_id)
+               WHERE g2.season BETWEEN '2015-16' AND '2025-26')
+"""
+
+[[question]]
+id = "most-rebounds-single-game"
+question = "What is the most rebounds by a player in one game from 2015-16 to 2025-26, and who had it?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, g.game_date, s.reb
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season BETWEEN '2015-16' AND '2025-26'
+  AND s.reb = (SELECT MAX(s2.reb) FROM player_game_stats s2 JOIN games g2 USING (game_id)
+               WHERE g2.season BETWEEN '2015-16' AND '2025-26')
+"""
+
+[[question]]
+id = "best-scoring-season"
+question = "Which player had the highest points per game in a regular season from 2015-16 to 2025-26, playing at least 50 games?"
+category = "ranking"
+difficulty = "hard"
+sql = """
+SELECT p.full_name, g.season, ROUND(AVG(s.pts), 1) AS ppg
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+GROUP BY s.player_id, g.season HAVING COUNT(*) >= 50
+ORDER BY AVG(s.pts) DESC LIMIT 1
+"""
+
+[[question]]
+id = "top-playoff-scorers"
+question = "Who are the top three playoff scorers in total points from 2015-16 to 2025-26?"
+category = "ranking"
+difficulty = "simple"
+ordered = true
+sql = """
+SELECT p.full_name, SUM(s.pts) AS points
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season_type = 'Playoffs' AND g.season BETWEEN '2015-16' AND '2025-26'
+GROUP BY s.player_id ORDER BY points DESC LIMIT 3
+"""
+
+[[question]]
+id = "most-blocks-season"
+question = "Who had the most blocks in a single regular season from 2015-16 to 2025-26?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, g.season, SUM(s.blk) AS blocks
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+GROUP BY s.player_id, g.season ORDER BY blocks DESC LIMIT 1
+"""
+
+[[question]]
+id = "most-minutes-single-game"
+question = "Who played the most minutes in a single game from 2015-16 to 2025-26?"
+category = "ranking"
+difficulty = "simple"
+notes = "Exact seconds come from the box score; the game log alone rounds to whole minutes."
+sql = """
+SELECT p.full_name, g.game_date, ROUND(s.seconds / 60.0, 1) AS minutes
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season BETWEEN '2015-16' AND '2025-26'
+  AND s.seconds = (SELECT MAX(s2.seconds) FROM player_game_stats s2 JOIN games g2 USING (game_id)
+                   WHERE g2.season BETWEEN '2015-16' AND '2025-26')
+"""
+
+[[question]]
+id = "best-plus-minus-game"
+question = "What is the best plus-minus by a player in one game from 2015-16 to 2025-26?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, g.game_date, s.plus_minus
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season BETWEEN '2015-16' AND '2025-26'
+  AND s.plus_minus = (SELECT MAX(s2.plus_minus) FROM player_game_stats s2
+                      JOIN games g2 USING (game_id) WHERE g2.season BETWEEN '2015-16' AND '2025-26')
+"""
+
+# --- count: how many ----------------------------------------------------------------
+
+[[question]]
+id = "giannis-40-point-games"
+question = "How many 40-point regular season games did Giannis Antetokounmpo have from 2015-16 to 2025-26?"
+category = "count"
+difficulty = "simple"
+sql = """
+SELECT COUNT(*) AS games
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 203507 AND s.pts >= 40
+  AND g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+"""
+
+[[question]]
+id = "westbrook-triple-doubles-2016-17"
+question = "How many triple-doubles did Russell Westbrook have in the 2016-17 regular season?"
+category = "count"
+difficulty = "hard"
+sql = """
+SELECT COUNT(*) AS triple_doubles
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 201566 AND g.season = '2016-17' AND g.season_type = 'Regular Season'
+  AND (s.pts >= 10) + (s.reb >= 10) + (s.ast >= 10) + (s.stl >= 10) + (s.blk >= 10) >= 3
+"""
+
+[[question]]
+id = "quadruple-overtime-games"
+question = "Which games went to four overtimes from 2015-16 to 2025-26?"
+category = "count"
+difficulty = "simple"
+sql = """
+SELECT g.game_date, home.abbreviation AS home, away.abbreviation AS away
+FROM games g
+JOIN teams home ON home.team_id = g.home_team_id
+JOIN teams away ON away.team_id = g.away_team_id
+WHERE g.overtimes = 4 AND g.season BETWEEN '2015-16' AND '2025-26'
+"""
+
+[[question]]
+id = "overtime-games-2023-24"
+question = "How many regular season games went to overtime in 2023-24?"
+category = "count"
+difficulty = "simple"
+sql = """
+SELECT COUNT(*) AS games
+FROM games
+WHERE overtimes > 0 AND season = '2023-24' AND season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "players-with-60"
+question = "How many different players scored 60 or more points in a game from 2015-16 to 2025-26?"
+category = "count"
+difficulty = "simple"
+sql = """
+SELECT COUNT(DISTINCT s.player_id) AS players
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.pts >= 60 AND g.season BETWEEN '2015-16' AND '2025-26'
+"""
+
+[[question]]
+id = "jokic-triple-doubles-2021-22"
+question = "How many triple-doubles did Nikola Jokic have in the 2021-22 regular season?"
+category = "count"
+difficulty = "hard"
+sql = """
+SELECT COUNT(*) AS triple_doubles
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 203999 AND g.season = '2021-22' AND g.season_type = 'Regular Season'
+  AND (s.pts >= 10) + (s.reb >= 10) + (s.ast >= 10) + (s.stl >= 10) + (s.blk >= 10) >= 3
+"""
+
+[[question]]
+id = "games-in-2020-21"
+question = "How many regular season games were played in 2020-21?"
+category = "count"
+difficulty = "simple"
+notes = "72 a team instead of 82 (COVID), so 1,080 instead of 1,230."
+sql = """
+SELECT COUNT(*) AS games FROM games WHERE season = '2020-21' AND season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "curry-10-three-games"
+question = "How many games did Stephen Curry make 10 or more threes in, from 2015-16 to 2025-26?"
+category = "count"
+difficulty = "simple"
+sql = """
+SELECT COUNT(*) AS games
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 201939 AND s.fg3m >= 10 AND g.season BETWEEN '2015-16' AND '2025-26'
+"""
+
+# --- split: starters and bench, home and away ---------------------------------------
+
+[[question]]
+id = "most-20-point-bench-games"
+question = "Who has the most 20-point games off the bench from 2015-16 to 2025-26?"
+category = "split"
+difficulty = "simple"
+notes = "The example question in the README."
+sql = """
+SELECT p.full_name, COUNT(*) AS games
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE s.starter = 0 AND s.pts >= 20 AND g.season BETWEEN '2015-16' AND '2025-26'
+GROUP BY s.player_id ORDER BY games DESC LIMIT 1
+"""
+
+[[question]]
+id = "top-bench-scorer-2023-24"
+question = "Who scored the most points off the bench in the 2023-24 regular season?"
+category = "split"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, SUM(s.pts) AS points
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE s.starter = 0 AND g.season = '2023-24' AND g.season_type = 'Regular Season'
+GROUP BY s.player_id ORDER BY points DESC LIMIT 1
+"""
+
+[[question]]
+id = "best-bench-game"
+question = "What is the most points scored off the bench in a single game from 2015-16 to 2025-26?"
+category = "split"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, g.game_date, s.pts
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE s.starter = 0 AND g.season BETWEEN '2015-16' AND '2025-26'
+  AND s.pts = (SELECT MAX(s2.pts) FROM player_game_stats s2 JOIN games g2 USING (game_id)
+               WHERE s2.starter = 0 AND g2.season BETWEEN '2015-16' AND '2025-26')
+"""
+
+[[question]]
+id = "lebron-home-away-2017-18"
+question = "What was LeBron James's points per game at home and on the road in the 2017-18 regular season?"
+category = "split"
+difficulty = "hard"
+sql = """
+SELECT CASE WHEN s.team_id = g.home_team_id THEN 'home' ELSE 'away' END AS venue,
+       ROUND(AVG(s.pts), 1) AS ppg
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 2544 AND g.season = '2017-18' AND g.season_type = 'Regular Season'
+GROUP BY venue
+"""
+
+[[question]]
+id = "most-starts"
+question = "Which player started the most regular season games from 2015-16 to 2025-26?"
+category = "split"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, COUNT(*) AS starts
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE s.starter = 1 AND g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+GROUP BY s.player_id ORDER BY starts DESC LIMIT 1
+"""
+
+[[question]]
+id = "starter-vs-bench-points-2024-25"
+question = "In the 2024-25 regular season, what share of all points were scored by starters?"
+category = "split"
+difficulty = "hard"
+tolerance = 0.005
+notes = "A fraction between 0 and 1, so the tolerance is tighter than the default."
+sql = """
+SELECT ROUND(1.0 * SUM(CASE WHEN s.starter = 1 THEN s.pts ELSE 0 END) / SUM(s.pts), 3) AS share
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE g.season = '2024-25' AND g.season_type = 'Regular Season'
+"""
+
+# --- team: records, margins, totals -------------------------------------------------
+
+[[question]]
+id = "warriors-record-2015-16"
+question = "What was the Warriors' regular season record in 2015-16?"
+category = "team"
+difficulty = "simple"
+sql = """
+SELECT SUM(won) AS wins, SUM(1 - won) AS losses FROM (
+  SELECT CASE WHEN (g.home_team_id = t.team_id) = (g.home_pts > g.away_pts) THEN 1 ELSE 0 END AS won
+  FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+  WHERE t.abbreviation = 'GSW' AND g.season = '2015-16' AND g.season_type = 'Regular Season'
+)
+"""
+
+[[question]]
+id = "most-wins-season"
+question = "Which team won the most regular season games in a single season from 2015-16 to 2025-26?"
+category = "team"
+difficulty = "hard"
+sql = """
+WITH results AS (
+  SELECT g.season, t.abbreviation,
+         CASE WHEN (g.home_team_id = t.team_id) = (g.home_pts > g.away_pts) THEN 1 ELSE 0 END AS won
+  FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+  WHERE g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+)
+SELECT abbreviation, season, SUM(won) AS wins
+FROM results GROUP BY abbreviation, season ORDER BY wins DESC LIMIT 1
+"""
+
+[[question]]
+id = "biggest-margin"
+question = "What was the biggest margin of victory in a game from 2015-16 to 2025-26?"
+category = "team"
+difficulty = "simple"
+sql = """
+SELECT g.game_date, home.abbreviation AS home, g.home_pts, away.abbreviation AS away, g.away_pts,
+       ABS(g.home_pts - g.away_pts) AS margin
+FROM games g
+JOIN teams home ON home.team_id = g.home_team_id
+JOIN teams away ON away.team_id = g.away_team_id
+WHERE g.season BETWEEN '2015-16' AND '2025-26'
+  AND ABS(g.home_pts - g.away_pts) = (SELECT MAX(ABS(home_pts - away_pts)) FROM games
+                                      WHERE season BETWEEN '2015-16' AND '2025-26')
+"""
+
+[[question]]
+id = "highest-combined-score"
+question = "Which game had the highest combined score from 2015-16 to 2025-26?"
+category = "team"
+difficulty = "simple"
+sql = """
+SELECT g.game_date, home.abbreviation AS home, away.abbreviation AS away,
+       g.home_pts + g.away_pts AS total
+FROM games g
+JOIN teams home ON home.team_id = g.home_team_id
+JOIN teams away ON away.team_id = g.away_team_id
+WHERE g.season BETWEEN '2015-16' AND '2025-26'
+  AND g.home_pts + g.away_pts = (SELECT MAX(home_pts + away_pts) FROM games
+                                 WHERE season BETWEEN '2015-16' AND '2025-26')
+"""
+
+[[question]]
+id = "celtics-ppg-2023-24"
+question = "How many points per game did the Celtics score in the 2023-24 regular season?"
+category = "team"
+difficulty = "simple"
+sql = """
+SELECT ROUND(AVG(CASE WHEN g.home_team_id = t.team_id THEN g.home_pts ELSE g.away_pts END), 1) AS ppg
+FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+WHERE t.abbreviation = 'BOS' AND g.season = '2023-24' AND g.season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "celtics-heat-2023-playoffs"
+question = "How many games did the Celtics and the Heat each win against each other in the 2022-23 playoffs?"
+category = "team"
+difficulty = "hard"
+sql = """
+SELECT CASE WHEN g.home_pts > g.away_pts THEN home.abbreviation ELSE away.abbreviation END AS team,
+       COUNT(*) AS wins
+FROM games g
+JOIN teams home ON home.team_id = g.home_team_id
+JOIN teams away ON away.team_id = g.away_team_id
+WHERE g.season = '2022-23' AND g.season_type = 'Playoffs'
+  AND home.abbreviation IN ('BOS', 'MIA') AND away.abbreviation IN ('BOS', 'MIA')
+GROUP BY team
+"""
+
+[[question]]
+id = "league-scoring-then-and-now"
+question = "How many points per game did an average team score in the 2015-16 regular season, and in 2024-25?"
+category = "team"
+difficulty = "hard"
+sql = """
+SELECT season, ROUND(AVG(pts), 1) AS ppg FROM (
+  SELECT season, home_pts AS pts FROM games WHERE season_type = 'Regular Season'
+  UNION ALL
+  SELECT season, away_pts FROM games WHERE season_type = 'Regular Season'
+)
+WHERE season IN ('2015-16', '2024-25')
+GROUP BY season
+"""
+
+[[question]]
+id = "most-130-point-games-2023-24"
+question = "Which team scored 130 or more points in the most regular season games in 2023-24?"
+category = "team"
+difficulty = "simple"
+sql = """
+SELECT t.abbreviation, COUNT(*) AS games
+FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+WHERE g.season = '2023-24' AND g.season_type = 'Regular Season'
+  AND CASE WHEN g.home_team_id = t.team_id THEN g.home_pts ELSE g.away_pts END >= 130
+GROUP BY t.team_id ORDER BY games DESC LIMIT 1
+"""
+
+[[question]]
+id = "best-home-record"
+question = "Which team had the best home record in a single regular season from 2015-16 to 2025-26?"
+category = "team"
+difficulty = "hard"
+sql = """
+SELECT t.abbreviation, g.season, SUM(g.home_pts > g.away_pts) AS home_wins,
+       SUM(g.home_pts < g.away_pts) AS home_losses
+FROM games g JOIN teams t ON t.team_id = g.home_team_id
+WHERE g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+GROUP BY t.team_id, g.season ORDER BY 1.0 * home_wins / COUNT(*) DESC LIMIT 1
+"""
+
+# --- streak: runs of games ----------------------------------------------------------
+
+[[question]]
+id = "longest-win-streak"
+question = "What was the longest winning streak by a team within a single regular season from 2015-16 to 2025-26?"
+category = "streak"
+difficulty = "hard"
+notes = "Within one season only. A streak carried over from the season before doesn't count."
+sql = """
+WITH results AS (
+  SELECT t.abbreviation, g.season, g.game_date,
+         CASE WHEN (g.home_team_id = t.team_id) = (g.home_pts > g.away_pts) THEN 1 ELSE 0 END AS won
+  FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+  WHERE g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+),
+runs AS (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY abbreviation, season ORDER BY game_date)
+          - ROW_NUMBER() OVER (PARTITION BY abbreviation, season, won ORDER BY game_date) AS run
+  FROM results
+),
+streaks AS (
+  SELECT abbreviation, season, COUNT(*) AS games FROM runs WHERE won = 1
+  GROUP BY abbreviation, season, run
+)
+SELECT abbreviation, season, games FROM streaks
+WHERE games = (SELECT MAX(games) FROM streaks)
+"""
+
+[[question]]
+id = "longest-losing-streak"
+question = "What was the longest losing streak by a team within a single regular season from 2015-16 to 2025-26?"
+category = "streak"
+difficulty = "hard"
+notes = "Within one season only."
+sql = """
+WITH results AS (
+  SELECT t.abbreviation, g.season, g.game_date,
+         CASE WHEN (g.home_team_id = t.team_id) = (g.home_pts > g.away_pts) THEN 1 ELSE 0 END AS won
+  FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+  WHERE g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+),
+runs AS (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY abbreviation, season ORDER BY game_date)
+          - ROW_NUMBER() OVER (PARTITION BY abbreviation, season, won ORDER BY game_date) AS run
+  FROM results
+),
+streaks AS (
+  SELECT abbreviation, season, COUNT(*) AS games FROM runs WHERE won = 0
+  GROUP BY abbreviation, season, run
+)
+SELECT abbreviation, season, games FROM streaks
+WHERE games = (SELECT MAX(games) FROM streaks)
+"""
+
+[[question]]
+id = "longest-30-point-streak"
+question = "What is the longest run of consecutive regular season games with 30+ points by one player within a season, from 2015-16 to 2025-26?"
+category = "streak"
+difficulty = "hard"
+notes = "Consecutive games the player appeared in. Games he missed don't break the run."
+sql = """
+WITH games_played AS (
+  SELECT s.player_id, g.season, g.game_date, s.pts >= 30 AS hit
+  FROM player_game_stats s JOIN games g USING (game_id)
+  WHERE g.season_type = 'Regular Season' AND g.season BETWEEN '2015-16' AND '2025-26'
+),
+runs AS (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY player_id, season ORDER BY game_date)
+          - ROW_NUMBER() OVER (PARTITION BY player_id, season, hit ORDER BY game_date) AS run
+  FROM games_played
+),
+streaks AS (
+  SELECT player_id, season, COUNT(*) AS games FROM runs WHERE hit
+  GROUP BY player_id, season, run
+)
+SELECT p.full_name, s.season, s.games
+FROM streaks s JOIN players p USING (player_id)
+WHERE s.games = (SELECT MAX(games) FROM streaks)
+"""
+
+[[question]]
+id = "longest-double-double-streak-2024-25"
+question = "Who had the longest streak of consecutive double-doubles in the 2024-25 regular season, and how long was it?"
+category = "streak"
+difficulty = "hard"
+notes = "Streak SQL checked: the same query on 2023-24 returns Sabonis, 61, the streak ESPN reports (https://www.espn.com/nba/story/_/id/39911469/sabonis-double-double-streak-ends-61-kings-loss). The 2024-25 answer itself isn't checked yet. Consecutive games the player appeared in."
+sql = """
+WITH games_played AS (
+  SELECT s.player_id, g.game_date,
+         (s.pts >= 10) + (s.reb >= 10) + (s.ast >= 10) + (s.stl >= 10) + (s.blk >= 10) >= 2 AS hit
+  FROM player_game_stats s JOIN games g USING (game_id)
+  WHERE g.season = '2024-25' AND g.season_type = 'Regular Season'
+),
+runs AS (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY game_date)
+          - ROW_NUMBER() OVER (PARTITION BY player_id, hit ORDER BY game_date) AS run
+  FROM games_played
+),
+streaks AS (
+  SELECT player_id, COUNT(*) AS games FROM runs WHERE hit GROUP BY player_id, run
+)
+SELECT p.full_name, s.games
+FROM streaks s JOIN players p USING (player_id)
+WHERE s.games = (SELECT MAX(games) FROM streaks)
+"""
+
+# --- edge: questions that are easy to get subtly wrong ------------------------------
+
+[[question]]
+id = "harden-teams-2020-21"
+question = "Which teams did James Harden play for in the 2020-21 regular season, and how many games for each?"
+category = "edge"
+difficulty = "simple"
+notes = "Traded mid-season: the team is on each game row, not on the player."
+sql = """
+SELECT t.abbreviation, COUNT(*) AS games
+FROM player_game_stats s JOIN games g USING (game_id) JOIN teams t ON t.team_id = s.team_id
+WHERE s.player_id = 201935 AND g.season = '2020-21' AND g.season_type = 'Regular Season'
+GROUP BY t.abbreviation
+"""
+
+[[question]]
+id = "most-teams-played-for"
+notes = "Checked: sources count 12 career teams, but the 12th (CHA) is a trade with no games yet, so 11 teams played for is right (https://sportskeeda.com/basketball/news-how-many-nba-teams-dennis-schroder-played-for-latest-veteran-journeyman-s-career-heat-move-utah)."
+question = "Which player played for the most different teams from 2015-16 to 2025-26?"
+category = "edge"
+difficulty = "hard"
+sql = """
+WITH teams_per_player AS (
+  SELECT s.player_id, COUNT(DISTINCT s.team_id) AS teams
+  FROM player_game_stats s JOIN games g USING (game_id)
+  WHERE g.season BETWEEN '2015-16' AND '2025-26'
+  GROUP BY s.player_id
+)
+SELECT p.full_name, t.teams
+FROM teams_per_player t JOIN players p USING (player_id)
+WHERE t.teams = (SELECT MAX(teams) FROM teams_per_player)
+"""
+
+[[question]]
+id = "curry-total-minutes-2015-16"
+question = "How many minutes did Stephen Curry play in total in the 2015-16 regular season?"
+category = "edge"
+difficulty = "simple"
+tolerance = 1
+notes = "Exact seconds, so the total is within a minute, not off by up to 79 minutes of rounding."
+sql = """
+SELECT ROUND(SUM(s.seconds) / 60.0) AS minutes
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 201939 AND g.season = '2015-16' AND g.season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "regular-season-and-playoffs-2015-16-curry"
+question = "How many games did Stephen Curry play in 2015-16, regular season and playoffs together?"
+category = "edge"
+difficulty = "simple"
+notes = "Both season types: an answer with only the regular season is wrong."
+sql = """
+SELECT COUNT(*) AS games
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 201939 AND g.season = '2015-16'
+"""
+
+[[question]]
+id = "bubble-season-games-per-team"
+question = "Which teams played the fewest regular season games in 2019-20, and how many?"
+category = "edge"
+difficulty = "hard"
+notes = "The season stopped in March 2020; only 22 teams went to the Orlando bubble."
+sql = """
+WITH per_team AS (
+  SELECT t.abbreviation, COUNT(*) AS games
+  FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+  WHERE g.season = '2019-20' AND g.season_type = 'Regular Season'
+  GROUP BY t.team_id
+)
+SELECT abbreviation, games FROM per_team WHERE games = (SELECT MIN(games) FROM per_team)
+"""
+
+[[question]]
+id = "three-point-percentage-curry-2015-16"
+question = "What was Stephen Curry's three-point percentage in the 2015-16 regular season?"
+category = "edge"
+difficulty = "simple"
+notes = "Total makes over total attempts, not the average of per-game percentages."
+tolerance = 0.0005
+sql = """
+SELECT ROUND(1.0 * SUM(s.fg3m) / SUM(s.fg3a), 3) AS fg3_pct
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 201939 AND g.season = '2015-16' AND g.season_type = 'Regular Season'
+"""

@@ -98,6 +98,23 @@ systemctl --user list-timers fastbreak-nightly.timer   # when it runs next
 journalctl --user -u fastbreak-nightly                 # what happened last time
 ```
 
+**The test set**
+
+The questions the agent is scored on live in `evals/questions.toml`, each with
+the SQL that answers it. The answer that SQL returns is saved in
+`evals/answers/<id>.json`, and an agent's query counts as correct when it
+returns the same rows (any column order, extra columns allowed).
+
+```bash
+uv run fastbreak questions show luka-73   # one question, its SQL and answer
+uv run fastbreak questions check          # every SQL still runs and matches its answer
+uv run fastbreak questions freeze         # save answers for new questions
+```
+
+A question starts as `status = "draft"`. Check its answer (Basketball-Reference
+is the easiest source), write in `notes` how you checked it, then set
+`status = "approved"`. Only approved questions count towards the score.
+
 To explore the data, open `notebooks/01_explore.ipynb` in VS Code and pick the
 `.venv` kernel.
 
