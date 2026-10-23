@@ -66,7 +66,8 @@ WHERE s.player_id = 1629029 AND g.game_date = '2024-01-26'
 
 [[question]]
 id = "booker-70-minutes"
-notes = "Claude check (match): Basketball-Reference box score MP 44:58 (https://www.basketball-reference.com/boxscores/201703240BOS.html). The DB has 2,698 seconds = 44.97 min, so 45.0 is rounded; the 0.05 tolerance accepts 44.97 and 45."
+status = "approved"
+notes = "Claude check (match): Basketball-Reference box score MP 44:58 (https://www.basketball-reference.com/boxscores/201703240BOS.html). The DB has 2,698 seconds = 44.97 min, so 45.0 is rounded; the 0.05 tolerance accepts 44.97 and 45. Approved 2026-10-22 on this check."
 question = "How many minutes did Devin Booker play in his 70-point game?"
 category = "lookup"
 difficulty = "simple"
@@ -136,7 +137,8 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "most-50-point-games"
-notes = "Claude check (match): StatMuse since 2015-16 including playoffs has Harden 23, Lillard 17, Curry 14, Giannis 10, then Dončić and Embiid 9 (https://www.statmuse.com/nba/ask/most-50-point-games-since-2015-16-including-playoffs). Four, not five: 5th and 6th are tied on 9 (Dončić and Embiid)."
+status = "approved"
+notes = "Claude check (match): StatMuse since 2015-16 including playoffs has Harden 23, Lillard 17, Curry 14, Giannis 10, then Dončić and Embiid 9 (https://www.statmuse.com/nba/ask/most-50-point-games-since-2015-16-including-playoffs). Four, not five: 5th and 6th are tied on 9 (Dončić and Embiid). Approved 2026-10-22 on this check."
 question = "Which four players had the most 50-point games from 2015-16 to 2025-26, regular season and playoffs, and how many each?"
 category = "ranking"
 difficulty = "simple"
@@ -149,7 +151,8 @@ GROUP BY s.player_id ORDER BY games DESC LIMIT 4
 
 [[question]]
 id = "most-threes-total"
-notes = "Claude check (match): Basketball-Reference 3P per season 2015-16 to 2025-26 is 402, 324, 212, 354, 12, 337, 285, 273, 357, 311, 190, the same as the DB, total 3,057 (https://www.basketball-reference.com/players/c/curryst01.html)."
+status = "approved"
+notes = "Claude check (match): Basketball-Reference 3P per season 2015-16 to 2025-26 is 402, 324, 212, 354, 12, 337, 285, 273, 357, 311, 190, the same as the DB, total 3,057 (https://www.basketball-reference.com/players/c/curryst01.html). Approved 2026-10-22 on this check."
 question = "Who made the most three-pointers in regular season games from 2015-16 to 2025-26, and how many?"
 category = "ranking"
 difficulty = "simple"
@@ -162,7 +165,8 @@ GROUP BY s.player_id ORDER BY threes DESC LIMIT 1
 
 [[question]]
 id = "most-assists-single-game"
-notes = "Claude check (match): StatMuse regular season since 2015-16 has Rondo 25, then Westbrook 24 twice; the playoff max is Rondo's 21 (https://www.statmuse.com/nba/ask/most-assists-in-a-game-since-2015-16)."
+status = "approved"
+notes = "Claude check (match): StatMuse regular season since 2015-16 has Rondo 25, then Westbrook 24 twice; the playoff max is Rondo's 21 (https://www.statmuse.com/nba/ask/most-assists-in-a-game-since-2015-16). Approved 2026-10-22 on this check."
 question = "What is the most assists by a player in one game from 2015-16 to 2025-26, and who had it?"
 category = "ranking"
 difficulty = "simple"
@@ -176,7 +180,8 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "most-rebounds-single-game"
-notes = "Claude check (match): box score 13 ORB + 18 DRB = 31 (https://www.basketball-reference.com/boxscores/202403030PHO.html). StatMuse has Nurkić 31 then 30s; the playoff max is Biyombo's 26 (https://www.statmuse.com/nba/ask/most-rebounds-in-a-game-since-2015-16)."
+status = "approved"
+notes = "Claude check (match): box score 13 ORB + 18 DRB = 31 (https://www.basketball-reference.com/boxscores/202403030PHO.html). StatMuse has Nurkić 31 then 30s; the playoff max is Biyombo's 26 (https://www.statmuse.com/nba/ask/most-rebounds-in-a-game-since-2015-16). Approved 2026-10-22 on this check."
 question = "What is the most rebounds by a player in one game from 2015-16 to 2025-26, and who had it?"
 category = "ranking"
 difficulty = "simple"
@@ -190,7 +195,8 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "best-scoring-season"
-notes = "Checked by me (2026-10-20): Harden 36.1 in 2018-19 (Basketball-Reference). The question's 50-game rule and season range are what the SQL applies."
+status = "approved"
+notes = "Checked by me (2026-10-20): Harden 36.1 in 2018-19 (Basketball-Reference). The question's 50-game rule and season range are what the SQL applies. Approved 2026-10-22 on this check."
 question = "Which player had the highest points per game in a regular season from 2015-16 to 2025-26, playing at least 50 games?"
 category = "ranking"
 difficulty = "hard"
@@ -204,7 +210,8 @@ ORDER BY AVG(s.pts) DESC LIMIT 1
 
 [[question]]
 id = "top-playoff-scorers"
-notes = "Claude check (match): playoff points per season add up to LeBron 3,501 and Curry 3,111 on Basketball-Reference, and Tatum 3,076 on StatMuse (https://www.statmuse.com/nba/ask/jayson-tatum-playoff-points-by-season). 4th in the DB is Durant, 2,899."
+status = "approved"
+notes = "Claude check (match): playoff points per season add up to LeBron 3,501 and Curry 3,111 on Basketball-Reference, and Tatum 3,076 on StatMuse (https://www.statmuse.com/nba/ask/jayson-tatum-playoff-points-by-season). 4th in the DB is Durant, 2,899. Approved 2026-10-22 on this check."
 question = "Who are the top three playoff scorers in total points from 2015-16 to 2025-26?"
 category = "ranking"
 difficulty = "simple"
@@ -232,10 +239,11 @@ GROUP BY s.player_id, g.season ORDER BY blocks DESC LIMIT 1
 
 [[question]]
 id = "most-minutes-single-game"
+status = "approved"
 question = "Who played the most minutes in a single game from 2015-16 to 2025-26?"
 category = "ranking"
 difficulty = "simple"
-notes = "Claude check (match): box score MP 64:58 in the 4OT game (https://www.basketball-reference.com/boxscores/201905030POR.html). StatMuse with playoffs has Jokić 65, then Millsap and McCollum 60. 65.0 is 64:58 rounded; the tolerance accepts both. Exact seconds come from the box score; the game log alone rounds to whole minutes."
+notes = "Claude check (match): box score MP 64:58 in the 4OT game (https://www.basketball-reference.com/boxscores/201905030POR.html). StatMuse with playoffs has Jokić 65, then Millsap and McCollum 60. 65.0 is 64:58 rounded; the tolerance accepts both. Exact seconds come from the box score; the game log alone rounds to whole minutes. Approved 2026-10-22 on this check."
 sql = """
 SELECT p.full_name, g.game_date, ROUND(s.seconds / 60.0, 1) AS minutes
 FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
@@ -246,7 +254,8 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "best-plus-minus-game"
-notes = "Claude check (match): box score +57 (https://www.basketball-reference.com/boxscores/201711220HOU.html). StatMuse regular season next is +54; the playoff max is SGA's +51 (https://www.statmuse.com/nba/ask/highest-plus-minus-in-a-game-since-2015-16)."
+status = "approved"
+notes = "Claude check (match): box score +57 (https://www.basketball-reference.com/boxscores/201711220HOU.html). StatMuse regular season next is +54; the playoff max is SGA's +51 (https://www.statmuse.com/nba/ask/highest-plus-minus-in-a-game-since-2015-16). Approved 2026-10-22 on this check."
 question = "What is the best plus-minus by a player in one game from 2015-16 to 2025-26?"
 category = "ranking"
 difficulty = "simple"
@@ -262,7 +271,8 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "giannis-40-point-games"
-notes = "Claude check (match): StatMuse 56 regular season games since 2015-16 (https://www.statmuse.com/nba/ask/giannis-antetokounmpo-40-point-games-regular-season-since-2015-16). With playoffs it would be 64."
+status = "approved"
+notes = "Claude check (match): StatMuse 56 regular season games since 2015-16 (https://www.statmuse.com/nba/ask/giannis-antetokounmpo-40-point-games-regular-season-since-2015-16). With playoffs it would be 64. Approved 2026-10-22 on this check."
 question = "How many 40-point regular season games did Giannis Antetokounmpo have from 2015-16 to 2025-26?"
 category = "count"
 difficulty = "simple"
@@ -289,7 +299,8 @@ WHERE s.player_id = 201566 AND g.season = '2016-17' AND g.season_type = 'Regular
 
 [[question]]
 id = "quadruple-overtime-games"
-notes = "Claude check (match): news reports confirm all four (e.g. https://www.cbssports.com/nba/gametracker/recap/NBA_20190503_DEN@POR/). That none are missing after 2019 rests on a search finding none, not on a published list."
+status = "approved"
+notes = "Claude check (match): news reports confirm all four (e.g. https://www.cbssports.com/nba/gametracker/recap/NBA_20190503_DEN@POR/). That none are missing after 2019 rests on a search finding none, not on a published list. Approved 2026-10-22 on this check."
 question = "Which games went to four overtimes from 2015-16 to 2025-26?"
 category = "count"
 difficulty = "simple"
@@ -303,7 +314,8 @@ WHERE g.overtimes = 4 AND g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "overtime-games-2023-24"
-notes = "Claude check (match): Basketball-Reference's 2023-24 schedule pages have 61 OT games; the 2 extra are playoff games (MIL-IND 2024-04-26, PHI-NYK 2024-04-30), leaving 59, with the dates the same as the DB."
+status = "approved"
+notes = "Claude check (match): Basketball-Reference's 2023-24 schedule pages have 61 OT games; the 2 extra are playoff games (MIL-IND 2024-04-26, PHI-NYK 2024-04-30), leaving 59, with the dates the same as the DB. Approved 2026-10-22 on this check."
 question = "How many regular season games went to overtime in 2023-24?"
 category = "count"
 difficulty = "simple"
@@ -315,7 +327,8 @@ WHERE overtimes > 0 AND season = '2023-24' AND season_type = 'Regular Season'
 
 [[question]]
 id = "players-with-60"
-notes = "Claude check (match): StatMuse lists the same 19 players, playoffs included (https://www.statmuse.com/nba/ask/players-with-60-point-games-since-2015-16-including-playoffs)."
+status = "approved"
+notes = "Claude check (match): StatMuse lists the same 19 players, playoffs included (https://www.statmuse.com/nba/ask/players-with-60-point-games-since-2015-16-including-playoffs). Approved 2026-10-22 on this check."
 question = "How many different players scored 60 or more points in a game from 2015-16 to 2025-26?"
 category = "count"
 difficulty = "simple"
@@ -327,7 +340,8 @@ WHERE s.pts >= 60 AND g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "jokic-triple-doubles-2021-22"
-notes = "Claude check (match): StatMuse 19 in the 2021-22 regular season (https://www.statmuse.com/nba/ask/nikola-jokic-triple-doubles-2021-22-regular-season)."
+status = "approved"
+notes = "Claude check (match): StatMuse 19 in the 2021-22 regular season (https://www.statmuse.com/nba/ask/nikola-jokic-triple-doubles-2021-22-regular-season). Approved 2026-10-22 on this check."
 question = "How many triple-doubles did Nikola Jokic have in the 2021-22 regular season?"
 category = "count"
 difficulty = "hard"
@@ -351,7 +365,8 @@ SELECT COUNT(*) AS games FROM games WHERE season = '2020-21' AND season_type = '
 
 [[question]]
 id = "curry-10-three-games"
-notes = "Checked by me (2026-10-20): StatMuse has 28 career regular season games with 10+ threes; minus 2 before 2015-16 = 26. Claude: all 26 in the DB are regular season, none in the playoffs."
+status = "approved"
+notes = "Checked by me (2026-10-20): StatMuse has 28 career regular season games with 10+ threes; minus 2 before 2015-16 = 26. Claude: all 26 in the DB are regular season, none in the playoffs. Approved 2026-10-22 on this check."
 question = "How many games did Stephen Curry make 10 or more threes in, from 2015-16 to 2025-26?"
 category = "count"
 difficulty = "simple"
@@ -365,20 +380,23 @@ WHERE s.player_id = 201939 AND s.fg3m >= 10 AND g.season BETWEEN '2015-16' AND '
 
 [[question]]
 id = "most-20-point-bench-games"
-question = "Who has the most 20-point games off the bench from 2015-16 to 2025-26?"
+status = "approved"
+question = "Who has the most 20-point regular season games off the bench from 2015-16 to 2025-26?"
 category = "split"
 difficulty = "simple"
-notes = "Claude check (partly confirmed): regular season only, StatMuse has Clarkson 141, Williams 139, Harrell 84, Monk 82, Ross 67, the same as the DB. Playoffs add 9 and 8; no source has the playoff part (https://www.statmuse.com/nba/ask/most-20-point-games-off-the-bench-since-2015-16). The example question in the README."
+notes = "Claude check (match): StatMuse regular season has Clarkson 141, Williams 139, Harrell 84, Monk 82, Ross 67, the same as the DB (https://www.statmuse.com/nba/ask/most-20-point-games-off-the-bench-since-2015-16). Regular season only (decided 2026-10-22): no source counts the playoff games off the bench, which would add 9. The example question in the README. Approved 2026-10-22 on this check."
 sql = """
 SELECT p.full_name, COUNT(*) AS games
 FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
 WHERE s.starter = 0 AND s.pts >= 20 AND g.season BETWEEN '2015-16' AND '2025-26'
+  AND g.season_type = 'Regular Season'
 GROUP BY s.player_id ORDER BY games DESC LIMIT 1
 """
 
 [[question]]
 id = "top-bench-scorer-2023-24"
-notes = "Claude check (match): Monk led the league with 1,110 bench points (https://www.nbcsportsbayarea.com/nba/sacramento-kings/malik-monk-nba-sixth-man-year-award/1728338)."
+status = "approved"
+notes = "Claude check (match): Monk led the league with 1,110 bench points (https://www.nbcsportsbayarea.com/nba/sacramento-kings/malik-monk-nba-sixth-man-year-award/1728338). Approved 2026-10-22 on this check."
 question = "Who scored the most points off the bench in the 2023-24 regular season?"
 category = "split"
 difficulty = "simple"
@@ -391,7 +409,8 @@ GROUP BY s.player_id ORDER BY points DESC LIMIT 1
 
 [[question]]
 id = "best-bench-game"
-notes = "Claude check (match): Crawford's 51 is the record for a reserve; 2nd is Malachi Flynn's 50 on 2024-04-03, also 2nd in the DB (https://www.cbssports.com/nba/news/suns-jamal-crawford-drops-51-points-to-become-oldest-player-in-nba-history-with-50-point-game/)."
+status = "approved"
+notes = "Claude check (match): Crawford's 51 is the record for a reserve; 2nd is Malachi Flynn's 50 on 2024-04-03, also 2nd in the DB (https://www.cbssports.com/nba/news/suns-jamal-crawford-drops-51-points-to-become-oldest-player-in-nba-history-with-50-point-game/). Approved 2026-10-22 on this check."
 question = "What is the most points scored off the bench in a single game from 2015-16 to 2025-26?"
 category = "split"
 difficulty = "simple"
@@ -405,7 +424,8 @@ WHERE s.starter = 0 AND g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "lebron-home-away-2017-18"
-notes = "Claude check (match): BBRef splits home 1129 pts in 41 = 27.5, road 1122 in 41 = 27.4, same totals as the DB (https://www.basketball-reference.com/players/j/jamesle01/splits/2018)."
+status = "approved"
+notes = "Claude check (match): BBRef splits home 1129 pts in 41 = 27.5, road 1122 in 41 = 27.4, same totals as the DB (https://www.basketball-reference.com/players/j/jamesle01/splits/2018). Approved 2026-10-22 on this check."
 question = "What was LeBron James's points per game at home and on the road in the 2017-18 regular season?"
 category = "split"
 difficulty = "hard"
@@ -419,7 +439,8 @@ GROUP BY venue
 
 [[question]]
 id = "most-starts"
-notes = "Claude check (match): BBRef games started summed per season, DeRozan 821, Barnes 797 (https://www.basketball-reference.com/players/d/derozde01.html)."
+status = "approved"
+notes = "Claude check (match): BBRef games started summed per season, DeRozan 821, Barnes 797 (https://www.basketball-reference.com/players/d/derozde01.html). Approved 2026-10-22 on this check."
 question = "Which player started the most regular season games from 2015-16 to 2025-26?"
 category = "split"
 difficulty = "simple"
@@ -432,11 +453,12 @@ GROUP BY s.player_id ORDER BY starts DESC LIMIT 1
 
 [[question]]
 id = "starter-vs-bench-points-2024-25"
+status = "approved"
 question = "In the 2024-25 regular season, what share of all points were scored by starters?"
 category = "split"
 difficulty = "hard"
 tolerance = 0.005
-notes = "Claude check (no published number): a second query using final scores as the total gives 192,635 / 280,010 = 0.688. A fraction between 0 and 1, so the tolerance is tighter than the default."
+notes = "Claude check (no published number): a second query using final scores as the total gives 192,635 / 280,010 = 0.688. A fraction between 0 and 1, so the tolerance is tighter than the default. Approved 2026-10-22 on this check."
 sql = """
 SELECT ROUND(1.0 * SUM(CASE WHEN s.starter = 1 THEN s.pts ELSE 0 END) / SUM(s.pts), 3) AS share
 FROM player_game_stats s JOIN games g USING (game_id)
@@ -447,7 +469,8 @@ WHERE g.season = '2024-25' AND g.season_type = 'Regular Season'
 
 [[question]]
 id = "warriors-record-2015-16"
-notes = "Claude check (match): BBRef 73-9 (https://www.basketball-reference.com/leagues/NBA_2016.html)."
+status = "approved"
+notes = "Claude check (match): BBRef 73-9 (https://www.basketball-reference.com/leagues/NBA_2016.html). Approved 2026-10-22 on this check."
 question = "What was the Warriors' regular season record in 2015-16?"
 category = "team"
 difficulty = "simple"
@@ -461,7 +484,8 @@ SELECT SUM(won) AS wins, SUM(1 - won) AS losses FROM (
 
 [[question]]
 id = "most-wins-season"
-notes = "Claude check (match): GSW 73-9; next is OKC 2024-25 at 68-14 (https://www.basketball-reference.com/leagues/NBA_2025.html)."
+status = "approved"
+notes = "Claude check (match): GSW 73-9; next is OKC 2024-25 at 68-14 (https://www.basketball-reference.com/leagues/NBA_2025.html). Approved 2026-10-22 on this check."
 question = "Which team won the most regular season games in a single season from 2015-16 to 2025-26?"
 category = "team"
 difficulty = "hard"
@@ -478,7 +502,8 @@ FROM results GROUP BY abbreviation, season ORDER BY wins DESC LIMIT 1
 
 [[question]]
 id = "biggest-margin"
-notes = "Claude check (match): 152-79 is the NBA record margin, 73. No page opened; widely reported."
+status = "approved"
+notes = "Claude check (match): 152-79 is the NBA record margin, 73. No page opened; widely reported. Approved 2026-10-22 on this check."
 question = "What was the biggest margin of victory in a game from 2015-16 to 2025-26?"
 category = "team"
 difficulty = "simple"
@@ -495,7 +520,8 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "highest-combined-score"
-notes = "Claude check (match): SAC 176, LAC 175 in double overtime (https://www.cbssports.com/nba/news/kings-clippers-thriller-10-crazy-numbers-including-malik-monks-bench-explosion-and-a-kawhi-leonard-first). Highest without overtime is 317 (2019-10-30)."
+status = "approved"
+notes = "Claude check (match): SAC 176, LAC 175 in double overtime (https://www.cbssports.com/nba/news/kings-clippers-thriller-10-crazy-numbers-including-malik-monks-bench-explosion-and-a-kawhi-leonard-first). Highest without overtime is 317 (2019-10-30). Approved 2026-10-22 on this check."
 question = "Which game had the highest combined score from 2015-16 to 2025-26?"
 category = "team"
 difficulty = "simple"
@@ -512,7 +538,8 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 
 [[question]]
 id = "celtics-ppg-2023-24"
-notes = "Claude check (match): BBRef 120.6 (https://www.basketball-reference.com/teams/BOS/2024.html)."
+status = "approved"
+notes = "Claude check (match): BBRef 120.6 (https://www.basketball-reference.com/teams/BOS/2024.html). Approved 2026-10-22 on this check."
 question = "How many points per game did the Celtics score in the 2023-24 regular season?"
 category = "team"
 difficulty = "simple"
@@ -524,7 +551,8 @@ WHERE t.abbreviation = 'BOS' AND g.season = '2023-24' AND g.season_type = 'Regul
 
 [[question]]
 id = "celtics-heat-2023-playoffs"
-notes = "Claude check (match): Heat won the 2023 East finals 4-3; the DB's 7 games run 5/17 to 5/29."
+status = "approved"
+notes = "Claude check (match): Heat won the 2023 East finals 4-3; the DB's 7 games run 5/17 to 5/29. Approved 2026-10-22 on this check."
 question = "How many games did the Celtics and the Heat each win against each other in the 2022-23 playoffs?"
 category = "team"
 difficulty = "hard"
@@ -541,7 +569,8 @@ GROUP BY team
 
 [[question]]
 id = "league-scoring-then-and-now"
-notes = "Claude check (match): BBRef league average 102.7 (2016 page) and 113.8 (2025 page)."
+status = "approved"
+notes = "Claude check (match): BBRef league average 102.7 (2016 page) and 113.8 (2025 page). Approved 2026-10-22 on this check."
 question = "How many points per game did an average team score in the 2015-16 regular season, and in 2024-25?"
 category = "team"
 difficulty = "hard"
@@ -557,7 +586,8 @@ GROUP BY season
 
 [[question]]
 id = "most-130-point-games-2023-24"
-notes = "Claude check (match): StatMuse IND 25, MIL 19, BOS 17; a second query summing player points agrees (https://www.statmuse.com/nba/ask/most-games-with-130-points-by-a-team-in-2023-24-regular-season)."
+status = "approved"
+notes = "Claude check (match): StatMuse IND 25, MIL 19, BOS 17; a second query summing player points agrees (https://www.statmuse.com/nba/ask/most-games-with-130-points-by-a-team-in-2023-24-regular-season). Approved 2026-10-22 on this check."
 question = "Which team scored 130 or more points in the most regular season games in 2023-24?"
 category = "team"
 difficulty = "simple"
@@ -571,7 +601,8 @@ GROUP BY t.team_id ORDER BY games DESC LIMIT 1
 
 [[question]]
 id = "best-home-record"
-notes = "Claude check (match): Spurs 40-1 at home, tying the NBA record (https://en.wikipedia.org/wiki/2015%E2%80%9316_San_Antonio_Spurs_season)."
+status = "approved"
+notes = "Claude check (match): Spurs 40-1 at home, tying the NBA record (https://en.wikipedia.org/wiki/2015%E2%80%9316_San_Antonio_Spurs_season). Approved 2026-10-22 on this check."
 question = "Which team had the best home record in a single regular season from 2015-16 to 2025-26?"
 category = "team"
 difficulty = "hard"
@@ -587,10 +618,11 @@ GROUP BY t.team_id, g.season ORDER BY 1.0 * home_wins / COUNT(*) DESC LIMIT 1
 
 [[question]]
 id = "longest-win-streak"
+status = "approved"
 question = "What was the longest winning streak by a team within a single regular season from 2015-16 to 2025-26?"
 category = "streak"
 difficulty = "hard"
-notes = "Claude check (match): GSW's 24-0 start; a second query agrees. 28 counts the 4 wins that ended 2014-15, so an answer of 28 is wrong here. Within one season only. A streak carried over from the season before doesn't count."
+notes = "Claude check (match): GSW's 24-0 start; a second query agrees. 28 counts the 4 wins that ended 2014-15, so an answer of 28 is wrong here. Within one season only. A streak carried over from the season before doesn't count. Approved 2026-10-22 on this check."
 sql = """
 WITH results AS (
   SELECT t.abbreviation, g.season, g.game_date,
@@ -613,10 +645,11 @@ WHERE games = (SELECT MAX(games) FROM streaks)
 
 [[question]]
 id = "longest-losing-streak"
+status = "approved"
 question = "What was the longest losing streak by a team within a single regular season from 2015-16 to 2025-26?"
 category = "streak"
 difficulty = "hard"
-notes = "Claude check (match): DET's 28 is the single-season record; PHI's 28 crossed two seasons and starts before 2015-16. Within one season only."
+notes = "Claude check (match): DET's 28 is the single-season record; PHI's 28 crossed two seasons and starts before 2015-16. Within one season only. Approved 2026-10-22 on this check."
 sql = """
 WITH results AS (
   SELECT t.abbreviation, g.season, g.game_date,
@@ -639,10 +672,11 @@ WHERE games = (SELECT MAX(games) FROM streaks)
 
 [[question]]
 id = "longest-30-point-streak"
+status = "approved"
 question = "What is the longest run of consecutive regular season games with 30+ points by one player within a season, from 2015-16 to 2025-26?"
 category = "streak"
 difficulty = "hard"
-notes = "Claude check (match): the streak ended at 32 (https://www.nba.com/news/harden-30-point-streak-ends). Consecutive games the player appeared in. Games he missed don't break the run."
+notes = "Claude check (match): the streak ended at 32 (https://www.nba.com/news/harden-30-point-streak-ends). Consecutive games the player appeared in. Games he missed don't break the run. Approved 2026-10-22 on this check."
 sql = """
 WITH games_played AS (
   SELECT s.player_id, g.season, g.game_date, s.pts >= 30 AS hit
@@ -665,10 +699,11 @@ WHERE s.games = (SELECT MAX(games) FROM streaks)
 
 [[question]]
 id = "longest-double-double-streak-2024-25"
+status = "approved"
 question = "Who had the longest streak of consecutive double-doubles in the 2024-25 regular season, and how long was it?"
 category = "streak"
 difficulty = "hard"
-notes = "Claude check (partly confirmed): BBRef game log shows 24 straight from 12/05 to 1/29, between 7-rebound games on 12/03 and 2/01 (https://www.basketball-reference.com/players/s/sabondo01/gamelog/2025). No source lists every player's 2024-25 streaks, so 'longest' rests on the DB. Streak SQL checked: the same query on 2023-24 returns Sabonis, 61, the streak ESPN reports (https://www.espn.com/nba/story/_/id/39911469/sabonis-double-double-streak-ends-61-kings-loss). The 2024-25 answer itself isn't checked yet. Consecutive games the player appeared in."
+notes = "Claude check (partly confirmed): BBRef game log shows 24 straight from 12/05 to 1/29, between 7-rebound games on 12/03 and 2/01 (https://www.basketball-reference.com/players/s/sabondo01/gamelog/2025). No source lists every player's 2024-25 streaks, so 'longest' rests on the DB. Streak SQL checked: the same query on 2023-24 returns Sabonis, 61, the streak ESPN reports (https://www.espn.com/nba/story/_/id/39911469/sabonis-double-double-streak-ends-61-kings-loss). The 2024-25 answer itself isn't checked yet. Consecutive games the player appeared in. Approved 2026-10-22 on this check."
 sql = """
 WITH games_played AS (
   SELECT s.player_id, g.game_date,
@@ -693,10 +728,11 @@ WHERE s.games = (SELECT MAX(games) FROM streaks)
 
 [[question]]
 id = "harden-teams-2020-21"
+status = "approved"
 question = "Which teams did James Harden play for in the 2020-21 regular season, and how many games for each?"
 category = "edge"
 difficulty = "simple"
-notes = "Claude check (match): 8 games with HOU, 36 with BKN, as on BBRef. Traded mid-season: the team is on each game row, not on the player."
+notes = "Claude check (match): 8 games with HOU, 36 with BKN, as on BBRef. Traded mid-season: the team is on each game row, not on the player. Approved 2026-10-22 on this check."
 sql = """
 SELECT t.abbreviation, COUNT(*) AS games
 FROM player_game_stats s JOIN games g USING (game_id) JOIN teams t ON t.team_id = s.team_id
@@ -706,7 +742,8 @@ GROUP BY t.abbreviation
 
 [[question]]
 id = "most-teams-played-for"
-notes = "Claude check (match): CLE traded him to CHA in August 2026 (https://nba.com/news/charlotte-cleveland-trade-schroder-mann). Pinned to 2025-26, so it stays 11. Checked: sources count 12 career teams, but the 12th (CHA) is a trade with no games yet, so 11 teams played for is right (https://sportskeeda.com/basketball/news-how-many-nba-teams-dennis-schroder-played-for-latest-veteran-journeyman-s-career-heat-move-utah)."
+status = "approved"
+notes = "Claude check (match): CLE traded him to CHA in August 2026 (https://nba.com/news/charlotte-cleveland-trade-schroder-mann). Pinned to 2025-26, so it stays 11. Checked: sources count 12 career teams, but the 12th (CHA) is a trade with no games yet, so 11 teams played for is right (https://sportskeeda.com/basketball/news-how-many-nba-teams-dennis-schroder-played-for-latest-veteran-journeyman-s-career-heat-move-utah). Approved 2026-10-22 on this check."
 question = "Which player played for the most different teams from 2015-16 to 2025-26?"
 category = "edge"
 difficulty = "hard"
@@ -724,11 +761,12 @@ WHERE t.teams = (SELECT MAX(teams) FROM teams_per_player)
 
 [[question]]
 id = "curry-total-minutes-2015-16"
+status = "approved"
 question = "How many minutes did Stephen Curry play in total in the 2015-16 regular season?"
 category = "edge"
 difficulty = "simple"
 tolerance = 1
-notes = "Claude check (match): BBRef MP 2,700 (https://www.basketball-reference.com/players/c/curryst01.html). Exact seconds, so the total is within a minute, not off by up to 79 minutes of rounding."
+notes = "Claude check (match): BBRef MP 2,700 (https://www.basketball-reference.com/players/c/curryst01.html). Exact seconds, so the total is within a minute, not off by up to 79 minutes of rounding. Approved 2026-10-22 on this check."
 sql = """
 SELECT ROUND(SUM(s.seconds) / 60.0) AS minutes
 FROM player_game_stats s JOIN games g USING (game_id)
@@ -737,10 +775,11 @@ WHERE s.player_id = 201939 AND g.season = '2015-16' AND g.season_type = 'Regular
 
 [[question]]
 id = "regular-season-and-playoffs-2015-16-curry"
+status = "approved"
 question = "How many games did Stephen Curry play in 2015-16, regular season and playoffs together?"
 category = "edge"
 difficulty = "simple"
-notes = "Claude check (match): BBRef 79 regular season + 18 playoff games. Both season types: an answer with only the regular season is wrong."
+notes = "Claude check (match): BBRef 79 regular season + 18 playoff games. Both season types: an answer with only the regular season is wrong. Approved 2026-10-22 on this check."
 sql = """
 SELECT COUNT(*) AS games
 FROM player_game_stats s JOIN games g USING (game_id)
@@ -749,10 +788,11 @@ WHERE s.player_id = 201939 AND g.season = '2015-16'
 
 [[question]]
 id = "bubble-season-games-per-team"
+status = "approved"
 question = "Which teams played the fewest regular season games in 2019-20, and how many?"
 category = "edge"
 difficulty = "hard"
-notes = "Claude check (match): BBRef MIN 19-45, the only team with 64; four teams had 65 (https://www.basketball-reference.com/leagues/NBA_2020_standings.html). The season stopped in March 2020; only 22 teams went to the Orlando bubble."
+notes = "Claude check (match): BBRef MIN 19-45, the only team with 64; four teams had 65 (https://www.basketball-reference.com/leagues/NBA_2020_standings.html). The season stopped in March 2020; only 22 teams went to the Orlando bubble. Approved 2026-10-22 on this check."
 sql = """
 WITH per_team AS (
   SELECT t.abbreviation, COUNT(*) AS games
@@ -765,13 +805,135 @@ SELECT abbreviation, games FROM per_team WHERE games = (SELECT MIN(games) FROM p
 
 [[question]]
 id = "three-point-percentage-curry-2015-16"
+status = "approved"
 question = "What was Stephen Curry's three-point percentage in the 2015-16 regular season?"
 category = "edge"
 difficulty = "simple"
-notes = "Claude check (match): BBRef 402/886 = .454 in 79 games (https://www.basketball-reference.com/players/c/curryst01.html). Total makes over total attempts, not the average of per-game percentages."
+notes = "Claude check (match): BBRef 402/886 = .454 in 79 games (https://www.basketball-reference.com/players/c/curryst01.html). Total makes over total attempts, not the average of per-game percentages. Approved 2026-10-22 on this check."
 tolerance = 0.0005
 sql = """
 SELECT ROUND(1.0 * SUM(s.fg3m) / SUM(s.fg3a), 3) AS fg3_pct
 FROM player_game_stats s JOIN games g USING (game_id)
 WHERE s.player_id = 201939 AND g.season = '2015-16' AND g.season_type = 'Regular Season'
+"""
+
+# --- this season: answers move with every nightly load (frozen = false) -------------
+#
+# "This season" means 2026-27, regular season. Nothing is saved in evals/answers/: the
+# scorer runs the SQL at scoring time. Ties return every tied row.
+
+[[question]]
+id = "this-season-games-played"
+status = "draft"
+frozen = false
+question = "How many regular season games have been played so far this season?"
+category = "count"
+difficulty = "simple"
+sql = """
+SELECT COUNT(*) AS games
+FROM games
+WHERE season = '2026-27' AND season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "this-season-lakers-record"
+status = "draft"
+frozen = false
+question = "What is the Lakers' record this season?"
+category = "team"
+difficulty = "simple"
+sql = """
+SELECT
+  SUM(CASE WHEN (g.home_team_id = t.team_id AND g.home_pts > g.away_pts)
+             OR (g.away_team_id = t.team_id AND g.away_pts > g.home_pts) THEN 1 ELSE 0 END) AS wins,
+  SUM(CASE WHEN (g.home_team_id = t.team_id AND g.home_pts < g.away_pts)
+             OR (g.away_team_id = t.team_id AND g.away_pts < g.home_pts) THEN 1 ELSE 0 END) AS losses
+FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+WHERE t.abbreviation = 'LAL' AND g.season = '2026-27' AND g.season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "this-season-wembanyama-ppg"
+status = "draft"
+frozen = false
+notes = "Claude check (2026-10-22, 1 game): 12 points on 1-for-13 vs OKC on 2026-10-20, the same as the DB (https://www.basketball-reference.com/boxscores/202610200SAS.html)."
+question = "How many points per game is Victor Wembanyama averaging this season?"
+category = "lookup"
+difficulty = "simple"
+sql = """
+SELECT ROUND(AVG(s.pts), 1) AS ppg
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 1641705 AND g.season = '2026-27' AND g.season_type = 'Regular Season'
+"""
+
+[[question]]
+id = "this-season-most-points-game"
+status = "draft"
+frozen = false
+notes = "Claude check (2026-10-22, 14 games): Ty Jerome's 45 vs UTA on 2026-10-21 (https://fieldlevelmedia.com/nba/ty-jerome-puts-up-career-best-45-points-as-grizzlies-stomp-jazz/), and Anthony Edwards's 45 vs MIA the same night (https://www.espn.com/nba/boxscore/_/gameId/401909091). A tie, so both rows count."
+question = "What is the most points a player has scored in one game this season, and who did it?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+WITH season_games AS (
+  SELECT p.full_name, s.pts
+  FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+  WHERE g.season = '2026-27' AND g.season_type = 'Regular Season'
+)
+SELECT full_name, pts FROM season_games WHERE pts = (SELECT MAX(pts) FROM season_games)
+"""
+
+[[question]]
+id = "this-season-highest-team-score"
+status = "draft"
+frozen = false
+question = "Which team has scored the most points in a game this season, and how many?"
+category = "team"
+difficulty = "hard"
+sql = """
+WITH team_scores AS (
+  SELECT th.abbreviation AS team, g.home_pts AS pts
+  FROM games g JOIN teams th ON th.team_id = g.home_team_id
+  WHERE g.season = '2026-27' AND g.season_type = 'Regular Season'
+  UNION ALL
+  SELECT ta.abbreviation, g.away_pts
+  FROM games g JOIN teams ta ON ta.team_id = g.away_team_id
+  WHERE g.season = '2026-27' AND g.season_type = 'Regular Season'
+)
+SELECT team, pts FROM team_scores WHERE pts = (SELECT MAX(pts) FROM team_scores)
+"""
+
+[[question]]
+id = "this-season-unbeaten-teams"
+status = "draft"
+frozen = false
+question = "Which teams haven't lost a game yet this season?"
+category = "edge"
+difficulty = "hard"
+notes = "Teams that haven't played yet don't count: a team needs at least one win. Once every team has lost, the SQL returns no rows and the question should be retired."
+sql = """
+WITH results AS (
+  SELECT t.abbreviation,
+    (g.home_team_id = t.team_id AND g.home_pts > g.away_pts)
+    OR (g.away_team_id = t.team_id AND g.away_pts > g.home_pts) AS won
+  FROM games g JOIN teams t ON t.team_id IN (g.home_team_id, g.away_team_id)
+  WHERE g.season = '2026-27' AND g.season_type = 'Regular Season'
+)
+SELECT abbreviation, COUNT(*) AS wins FROM results
+GROUP BY abbreviation HAVING MIN(won) = 1
+"""
+
+[[question]]
+id = "this-season-vs-last-sga"
+status = "draft"
+frozen = false
+question = "How many points per game is Shai Gilgeous-Alexander averaging this season, compared with last season?"
+category = "split"
+difficulty = "hard"
+notes = "Claude check (2026-10-22, 1 game): SGA had 32 in the opener (https://www.espn.com/nba/game/_/gameId/401909090/thunder-spurs). Last season is 2025-26. Tests that the agent reads 'this season' and 'last season' as two different seasons."
+sql = """
+SELECT g.season, ROUND(AVG(s.pts), 1) AS ppg
+FROM player_game_stats s JOIN games g USING (game_id)
+WHERE s.player_id = 1628983 AND g.season IN ('2025-26', '2026-27') AND g.season_type = 'Regular Season'
+GROUP BY g.season
 """
