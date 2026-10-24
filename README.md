@@ -13,7 +13,7 @@ Early build. Nothing here is live yet.
 - [x] Phase 1: data exploration ([notebook](notebooks/01_explore.ipynb), [decisions](DECISIONS.md))
 - [x] Phase 2: database schema ([schema](src/fastbreak/schema.sql))
 - [x] Phase 3: nightly data pipeline
-- [ ] Phase 4: test questions with correct answers
+- [x] Phase 4: test questions with correct answers ([questions](evals/questions.toml))
 - [ ] Phase 5: first agent
 - [ ] Phase 6: traces and metrics
 - [ ] Phase 7: API and web app
@@ -114,6 +114,10 @@ uv run fastbreak questions freeze         # save answers for new questions
 A question starts as `status = "draft"`. Check its answer (Basketball-Reference
 is the easiest source), write in `notes` how you checked it, then set
 `status = "approved"`. Only approved questions count towards the score.
+
+Questions about this season set `frozen = false`. Nothing is saved for them:
+the scorer runs their SQL at scoring time, because the answer changes with
+every nightly load.
 
 To explore the data, open `notebooks/01_explore.ipynb` in VS Code and pick the
 `.venv` kernel.
