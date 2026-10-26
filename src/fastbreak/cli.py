@@ -79,7 +79,7 @@ def main():
     serve.add_argument(
         "--host", default="127.0.0.1", help="address to listen on (default 127.0.0.1)"
     )
-    serve.add_argument("--port", type=int, default=8000, help="port (default 8000)")
+    serve.add_argument("--port", type=int, default=8077, help="port (default 8077)")
 
     args = parser.parse_args()
     if args.command == "serve":

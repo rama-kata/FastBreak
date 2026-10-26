@@ -20,6 +20,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from fastbreak.agent.agent import ask
+from fastbreak.agent.grounding import number_spans
 from fastbreak.agent.llm import LLMError, Ollama
 
 MAX_QUESTION_CHARS = 300
@@ -71,6 +72,10 @@ def result_payload(result, model):
     data["blocked"] = result.error is None and result.answer is None
     if not data["blocked"]:
         data["draft_answer"] = None
+    shown = result.answer or data["draft_answer"] or ""
+    data["number_spans"] = [
+        {"start": a, "end": b, "in_rows": found} for a, b, found in number_spans(shown, result.rows)
+    ]
     return data
 
 

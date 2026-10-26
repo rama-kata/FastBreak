@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* FastBreak palette: off-white paper, yellow for fills only (never text on paper),
+   green for "checked" and links, dark blue for headers and code, near-black text. */
+@theme {
+  --color-paper: #f6f5ee;
+  --color-chalk: #faf9f4;
+  --color-mist: #efede4;
+  --color-line: #e5e3da;
+  --color-line-strong: #d3d0c4;
+  --color-sun: #f2c94c;
+  --color-sun-soft: #fbefc0;
+  --color-court: #2e7d5a;
+  --color-court-ink: #1e6b4a;
+  --color-check: #dcefe3;
+  --color-check-ink: #1e5b40;
+  --color-navy: #13294b;
+  --color-ink: #0b0b0c;
+  --color-muted: #475569;
+  --color-miss: #fee2e2;
+  --color-miss-ink: #7f1d1d;
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-archivo), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+a {
+  color: var(--color-court-ink);
+}
+a:hover {
+  color: var(--color-navy);
+}

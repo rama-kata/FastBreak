@@ -111,6 +111,7 @@ def test_ask_streams_each_step_then_the_checked_answer(db_path):
     assert result["draft_answer"] is None
     assert result["rows"] == [["Devin Booker", 43]]
     assert result["model"] == "fake"
+    assert result["number_spans"] == [{"start": 20, "end": 22, "in_rows": True}]
     assert "calls" not in result
 
 
@@ -121,6 +122,7 @@ def test_a_held_back_answer_comes_with_its_draft_and_the_numbers_not_in_the_rows
     assert result["answer"] is None
     assert result["draft_answer"] == "The Warriors went 82 and 9."
     assert result["ungrounded"] == [82.0, 9.0]
+    assert [s["in_rows"] for s in result["number_spans"]] == [False, False]
 
 
 def test_a_failed_query_is_reported_and_retried(db_path):

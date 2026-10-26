@@ -48,3 +48,17 @@ def ungrounded_numbers(answer, rows, question=""):
         if not any(_matches(value, decimals, s) for s in sources):
             missing.append(value)
     return missing
+
+
+def number_spans(answer, rows):
+    """Where each number sits in `answer`, and whether the rows have it: a list of
+    (start, end, in_rows), for the web app to highlight the numbers it can trace."""
+    sources = _source_values(rows, "")
+    spans = []
+    for m in NUMBER.finditer(answer):
+        found = numbers_in(m.group())
+        if not found:
+            continue
+        value, decimals = found[0]
+        spans.append((m.start(), m.end(), any(_matches(value, decimals, s) for s in sources)))
+    return spans
