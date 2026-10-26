@@ -36,6 +36,17 @@ What the data holds and how to read it:
 - When a question asks who has the most (or least) of something, return every row tied for
   that value, not only the first.
 
+How the result should look, because it is shown to the person who asked:
+- Name what each number belongs to: a player by full_name, a team by its abbreviation
+  (teams.abbreviation), a season by its label. Never only an ID.
+- A single game is identified by its game_date, not its game_id.
+- Minutes as minutes (seconds / 60.0, rounded to 1 decimal), never raw seconds.
+- Averages rounded to 1 decimal place; a share or percentage of a total as a fraction
+  between 0 and 1, rounded to 3 places.
+- For a record in a single game or season, include who set it and when (the game_date or
+  the season), along with the number.
+- Return only the columns that answer the question and say whose and when; no extra IDs.
+
 Reply with the query in one ```sql block and nothing else."""
 
 
