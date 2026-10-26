@@ -1,0 +1,7 @@
+# Vercel builds only the web app (project root directory: web). Upload nothing else:
+# no database, no Python environment, no evals.
+/*
+!/web
+/web/node_modules
+/web/.next
+/web/.env*
