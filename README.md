@@ -14,7 +14,7 @@ Early build. Nothing here is live yet.
 - [x] Phase 2: database schema ([schema](src/fastbreak/schema.sql))
 - [x] Phase 3: nightly data pipeline
 - [x] Phase 4: test questions with correct answers ([questions](evals/questions.toml))
-- [ ] Phase 5: first agent
+- [x] Phase 5: first agent ([results](#results-so-far), [decisions](DECISIONS.md))
 - [ ] Phase 6: traces and metrics
 - [ ] Phase 7: API and web app
 
@@ -37,6 +37,50 @@ Early build. Nothing here is live yet.
 - p50 / p95 latency for each step
 - Cost per correct answer, not per model call
 - Failure rate for each pipeline step
+
+## Results so far
+
+Scored on the 50 approved test questions: a question counts only when the
+agent's query returns the right rows. All runs use `qwen3:14b` on Ollama, on a
+home PC with an RTX 3060 and an RTX 2070 Super, temperature 0.
+
+| Run | Thinking off | Thinking on* |
+|---|---|---|
+| Baseline: schema and conventions in the prompt | 20/50 (40%) | |
+| Rules for how a result should look | 31/50 (62%) | 40/50 (80%) |
+| Two ambiguous questions reworded, clearer rules | 33/50 (66%) | 44/50 (88%) |
+| Context and reply-length fix (latest) | **35/50 (70%)** | not re-run yet |
+| Typical / slow answer | 5.9 s / 25 s | 57 s / 156 s |
+
+\* The thinking-on runs were measured with a bug: Ollama's default 4,096-token
+context, which long reasoning overflowed, silently dropping the start of the
+prompt. They need a re-run after the fix before they count.
+
+What these numbers say, and what they don't:
+
+- **50 questions is a small test.** The latest 35/50 means the true accuracy
+  is somewhere between 56% and 81% (95% range), so I compare runs question by
+  question on the same 50, not on the headline number.
+- **Thinking looks like it doubles accuracy on hard questions** (5/15 to 11/15
+  before the fix) for about 10 times the time and output tokens, while simple
+  questions get 30/35 in about 6 seconds without it. If the re-run confirms it,
+  that's the case for routing: fast for simple questions, thinking for hard ones.
+- **The grounding check stops invented numbers, not wrong queries.** No reply
+  goes out with a number that isn't in the result, but a reply that faithfully
+  reports a wrong query's rows passes the check. Only the test set catches those.
+- **A much smaller model didn't work.** OLMoE-1B-7B (about 1B parameters used
+  per token) scored 1/50: it queried columns that don't exist and answered
+  different questions. A small model for simple questions would have to be
+  fine-tuned on this schema.
+- **Some misses are format, not facts.** Several wrong answers have the right
+  numbers in another form, such as a team ID instead of its abbreviation. The
+  scorer counts them as wrong.
+- **Who checked the test answers:** I checked 12 against outside sources
+  myself; 38 were approved on Claude Code's source checks, each recorded with
+  its link in `evals/questions.toml`.
+
+Every run is saved in `evals/results/`, one line per question with the SQL,
+rows and answer, so any number here can be traced back to the queries behind it.
 
 ## Scope for version 1
 
@@ -103,7 +147,8 @@ journalctl --user -u fastbreak-nightly                 # what happened last time
 The questions the agent is scored on live in `evals/questions.toml`, each with
 the SQL that answers it. The answer that SQL returns is saved in
 `evals/answers/<id>.json`, and an agent's query counts as correct when it
-returns the same rows (any column order, extra columns allowed).
+returns the same rows (any column order, extra columns allowed, text compared
+ignoring case).
 
 ```bash
 uv run fastbreak questions show luka-73   # one question, its SQL and answer
@@ -118,6 +163,22 @@ is the easiest source), write in `notes` how you checked it, then set
 Questions about this season set `frozen = false`. Nothing is saved for them:
 the scorer runs their SQL at scoring time, because the answer changes with
 every nightly load.
+
+**Asking the agent**
+
+It needs [Ollama](https://ollama.com) running with the model pulled
+(`ollama pull qwen3:14b`).
+
+```bash
+uv run fastbreak ask "Who has the most triple-doubles since 2015?"   # SQL, rows, answer
+uv run fastbreak ask --think "..."                                   # with the model's reasoning on
+uv run fastbreak eval                                                # score every approved question
+uv run fastbreak eval --think --id luka-73                           # one question, thinking on
+```
+
+The agent writes one SQL query, runs it on a read-only connection (10 second
+limit, 200 rows), retries once if the query fails, then writes the answer from
+the rows. The answer is held back if a number in it isn't in the rows.
 
 To explore the data, open `notebooks/01_explore.ipynb` in VS Code and pick the
 `.venv` kernel.

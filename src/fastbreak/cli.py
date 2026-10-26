@@ -98,6 +98,10 @@ def main():
     except run.RunInProgress as e:
         sys.exit(f"{e}. Stop it first, or wait for it to finish (uv run fastbreak status).")
     except KeyboardInterrupt:
+        if args.command in ("ask", "eval"):
+            sys.exit(
+                "stopped. An eval doesn't resume: running it again starts from the first question."
+            )
         sys.exit("stopped. Run the same command again to carry on where it left off.")
     except LLMError as e:
         sys.exit(f"the model failed: {e}. Is Ollama running (ollama list)?")
