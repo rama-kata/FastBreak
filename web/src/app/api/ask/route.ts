@@ -13,11 +13,15 @@ export async function POST(request: Request) {
   const question = typeof body?.question === "string" ? body.question.trim() : "";
   if (!question) return problem(400, "Type a question first.");
 
+  // Vercel sets these; the API limits questions per visitor by this address.
+  const client =
+    request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "";
+
   let upstream: Response;
   try {
     upstream = await fetch(apiUrl("/api/ask"), {
       method: "POST",
-      headers: { ...apiHeaders(), "Content-Type": "application/json" },
+      headers: { ...apiHeaders(), "Content-Type": "application/json", "X-FastBreak-Client": client },
       body: JSON.stringify({ question }),
       signal: request.signal,
     });

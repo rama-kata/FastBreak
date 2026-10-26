@@ -12,10 +12,12 @@ import os
 import secrets
 import sqlite3
 import threading
+import time
+from collections import deque
 from contextlib import closing
 from dataclasses import asdict
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -24,6 +26,8 @@ from fastbreak.agent.grounding import number_spans
 from fastbreak.agent.llm import LLMError, Ollama
 
 MAX_QUESTION_CHARS = 300
+HOURLY_LIMIT = 10  # questions per visitor per hour
+DAILY_LIMIT = 150  # questions from everyone per day: about two GPU-hours with thinking
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +53,34 @@ LEFT JOIN top ON top.game_id = g.game_id AND top.rn = 1
 WHERE g.game_date = (SELECT d FROM latest)
 ORDER BY g.game_id
 """
+
+
+class Limits:
+    """Questions per visitor per hour and in total per day, so the public site can't keep
+    the GPU busy around the clock. Counts live in memory and reset when the API restarts."""
+
+    def __init__(self, hourly, daily, clock=time.monotonic):
+        self.hourly, self.daily, self.clock = hourly, daily, clock
+        self.by_client = {}
+        self.everyone = deque()
+        self.lock = threading.Lock()
+
+    def take(self, client):
+        """Count one question from `client`, or say why it's refused (None when allowed)."""
+        now = self.clock()
+        with self.lock:
+            while self.everyone and now - self.everyone[0] > 86_400:
+                self.everyone.popleft()
+            mine = self.by_client.setdefault(client, deque())
+            while mine and now - mine[0] > 3600:
+                mine.popleft()
+            if len(self.everyone) >= self.daily:
+                return "FastBreak has answered all the questions it can today. Try again tomorrow."
+            if len(mine) >= self.hourly:
+                return f"That's {self.hourly} questions this hour. Try again a little later."
+            mine.append(now)
+            self.everyone.append(now)
+            return None
 
 
 class Question(BaseModel):
@@ -80,9 +112,13 @@ def result_payload(result, model):
     return data
 
 
-def create_app(db_path, make_llm, api_key=None):
-    """`make_llm()` returns the chat model to answer with; tests pass a fake one."""
+def create_app(db_path, make_llm, api_key=None, limits=None):
+    """`make_llm()` returns the chat model to answer with; tests pass a fake one.
+
+    The web app's server names the visitor in X-FastBreak-Client (their IP), which only
+    counts when the API key is checked, since otherwise anyone could set it."""
     app = FastAPI(title="FastBreak API")
+    limits = limits or Limits(HOURLY_LIMIT, DAILY_LIMIT)
     # One GPU box: answer one question at a time and tell anyone else it's busy.
     busy = threading.Lock()
 
@@ -117,14 +153,23 @@ def create_app(db_path, make_llm, api_key=None):
         return {"date": rows[0][1] if rows else None, "games": games}
 
     @app.post("/api/ask", dependencies=[Depends(check_key)])
-    async def ask_question(body: Question):
+    async def ask_question(
+        body: Question, request: Request, x_fastbreak_client: str | None = Header(default=None)
+    ):
         """Answer one question as a stream of server-sent events.
 
         Events: `sql_written`, `query_failed`, `query_done` while it works, then `result`
         (the answer, or why there isn't one) or `error` (the model couldn't be reached).
         """
+        client = (api_key and x_fastbreak_client) or (
+            request.client.host if request.client else "?"
+        )
         if not busy.acquire(blocking=False):
             raise HTTPException(503, "FastBreak is answering another question. Try again shortly.")
+        refused = limits.take(client)
+        if refused:
+            busy.release()
+            raise HTTPException(429, refused)
         loop = asyncio.get_running_loop()
         events = asyncio.Queue()
 
@@ -174,4 +219,8 @@ def app_from_env():
         db_path=os.environ.get("FASTBREAK_DB", "data/nba.db"),
         make_llm=lambda: Ollama(model, think=think),
         api_key=os.environ.get("FASTBREAK_API_KEY") or None,
+        limits=Limits(
+            int(os.environ.get("FASTBREAK_HOURLY_LIMIT", HOURLY_LIMIT)),
+            int(os.environ.get("FASTBREAK_DAILY_LIMIT", DAILY_LIMIT)),
+        ),
     )

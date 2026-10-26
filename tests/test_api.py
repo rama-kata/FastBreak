@@ -4,7 +4,7 @@ import threading
 import pytest
 from fastapi.testclient import TestClient
 
-from fastbreak.api.app import MAX_QUESTION_CHARS, create_app
+from fastbreak.api.app import MAX_QUESTION_CHARS, Limits, create_app
 from fastbreak.db import connect, init_db
 from tests.test_agent import FakeLLM, sql_reply
 
@@ -181,3 +181,33 @@ def test_questions_have_a_length_limit(db_path):
         == 422
     )
     assert client.post("/api/ask", json={"question": ""}).status_code == 422
+
+
+def test_limits_per_visitor_per_hour_and_for_everyone_per_day():
+    now = [0.0]
+    limits = Limits(hourly=2, daily=3, clock=lambda: now[0])
+    assert limits.take("a") is None
+    assert limits.take("a") is None
+    assert "this hour" in limits.take("a")
+    assert limits.take("b") is None
+    assert "today" in limits.take("c")
+    now[0] = 3601  # an hour later, a's questions no longer count, but the day's still do
+    assert "today" in limits.take("a")
+    now[0] = 86_401
+    assert limits.take("a") is None
+
+
+def test_a_visitor_over_the_limit_gets_429_and_the_next_question_still_runs(db_path):
+    app = create_app(
+        db_path,
+        lambda: FakeLLM(sql_reply("SELECT 1 AS one"), "It is 1."),
+        api_key="k",
+        limits=Limits(hourly=1, daily=10),
+    )
+    client = TestClient(app)
+    alice = {"X-FastBreak-Key": "k", "X-FastBreak-Client": "1.2.3.4"}
+    bob = {"X-FastBreak-Key": "k", "X-FastBreak-Client": "5.6.7.8"}
+    assert client.post("/api/ask", json={"question": "a"}, headers=alice).status_code == 200
+    refused = client.post("/api/ask", json={"question": "b"}, headers=alice)
+    assert refused.status_code == 429
+    assert client.post("/api/ask", json={"question": "c"}, headers=bob).status_code == 200
