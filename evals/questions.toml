@@ -196,8 +196,8 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 [[question]]
 id = "best-scoring-season"
 status = "approved"
-notes = "Checked by me (2026-10-20): Harden 36.1 in 2018-19 (Basketball-Reference). The question's 50-game rule and season range are what the SQL applies. Approved 2026-10-22 on this check."
-question = "Which player had the highest points per game in a regular season from 2015-16 to 2025-26, playing at least 50 games?"
+notes = "Checked by me (2026-10-20): Harden 36.1 in 2018-19 (Basketball-Reference). The question's 50-game rule and season range are what the SQL applies. Approved 2026-10-22 on this check. Reworded 2026-10-26 to say \"a single regular season\" and \"50 games that season\": the agent read it as a career average over the whole span, which the old wording allowed."
+question = "Which player had the highest points per game in a single regular season from 2015-16 to 2025-26, playing at least 50 games that season?"
 category = "ranking"
 difficulty = "hard"
 sql = """
@@ -410,8 +410,8 @@ GROUP BY s.player_id ORDER BY points DESC LIMIT 1
 [[question]]
 id = "best-bench-game"
 status = "approved"
-notes = "Claude check (match): Crawford's 51 is the record for a reserve; 2nd is Malachi Flynn's 50 on 2024-04-03, also 2nd in the DB (https://www.cbssports.com/nba/news/suns-jamal-crawford-drops-51-points-to-become-oldest-player-in-nba-history-with-50-point-game/). Approved 2026-10-22 on this check."
-question = "What is the most points scored off the bench in a single game from 2015-16 to 2025-26?"
+notes = "Claude check (match): Crawford's 51 is the record for a reserve; 2nd is Malachi Flynn's 50 on 2024-04-03, also 2nd in the DB (https://www.cbssports.com/nba/news/suns-jamal-crawford-drops-51-points-to-become-oldest-player-in-nba-history-with-50-point-game/). Approved 2026-10-22 on this check. Reworded 2026-10-26 to say \"by one player\": the agent read it as a team's whole bench (175), which the old wording allowed."
+question = "What is the most points scored off the bench by one player in a single game from 2015-16 to 2025-26?"
 category = "split"
 difficulty = "simple"
 sql = """
