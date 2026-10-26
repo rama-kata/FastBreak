@@ -1,16 +1,20 @@
-"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions>."""
+"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions | ask | eval>."""
 
 import argparse
 import signal
 import sys
 
 from fastbreak import evals
+from fastbreak.agent import evaluate
+from fastbreak.agent.agent import ask
+from fastbreak.agent.llm import LLMError, Ollama
 from fastbreak.db import connect, init_db
 from fastbreak.pipeline import run
 from fastbreak.pipeline.fetch import Fetcher
 
 DB_PATH = "data/nba.db"
 CACHE_DIR = "data/raw"
+DEFAULT_MODEL = "qwen3:14b"
 
 
 def stop_on_sigterm():
@@ -57,6 +61,17 @@ def main():
     show = actions.add_parser("show", help="one question, its SQL and its answer, for review")
     show.add_argument("id")
 
+    for name, text in (("ask", "answer one question"), ("eval", "score the agent on the test set")):
+        p = commands.add_parser(name, help=text)
+        p.add_argument(
+            "--model", default=DEFAULT_MODEL, help=f"Ollama model (default {DEFAULT_MODEL})"
+        )
+        p.add_argument("--think", action="store_true", help="turn the model's reasoning on")
+        if name == "ask":
+            p.add_argument("question")
+        else:
+            p.add_argument("--id", action="append", help="only this question (repeatable)")
+
     args = parser.parse_args()
     conn = connect(args.db)
     init_db(conn)
@@ -74,12 +89,61 @@ def main():
             run.ingest_nightly(conn, fetcher, days=args.days)
         elif args.command == "questions":
             questions_command(conn, args)
+        elif args.command == "ask":
+            ask_command(args)
+        elif args.command == "eval":
+            eval_command(conn, args)
         else:
             print_status(conn)
     except run.RunInProgress as e:
         sys.exit(f"{e}. Stop it first, or wait for it to finish (uv run fastbreak status).")
     except KeyboardInterrupt:
         sys.exit("stopped. Run the same command again to carry on where it left off.")
+    except LLMError as e:
+        sys.exit(f"the model failed: {e}. Is Ollama running (ollama list)?")
+
+
+def ask_command(args):
+    result = ask(args.question, Ollama(args.model, think=args.think), args.db)
+    print(f"SQL:\n{result.sql}\n")
+    if result.error:
+        sys.exit(result.error)
+    print(f"Rows ({', '.join(result.columns)}):")
+    for row in result.rows[:20]:
+        print(f"  {row}")
+    if len(result.rows) > 20 or result.truncated:
+        print("  ...")
+    if result.answer is None:
+        missing = ", ".join(f"{n:g}" for n in result.ungrounded)
+        print(f"\nNo answer: the model's reply used numbers that aren't in the rows ({missing}).")
+    else:
+        print(f"\n{result.answer}")
+    print(f"\n({result.seconds:.1f}s, {len(result.calls)} model calls)")
+
+
+def eval_command(conn, args):
+    questions = evals.load_questions()
+    if args.id:
+        unknown = set(args.id) - {q.id for q in questions}
+        if unknown:
+            sys.exit(f"no such question: {', '.join(sorted(unknown))}")
+        questions = [q for q in questions if q.id in args.id]
+    s = evaluate.run(conn, Ollama(args.model, think=args.think), args.db, questions)
+    low, high = s["accuracy_95"]
+    print(
+        f"\n{s['model']}: {s['correct']}/{s['questions']} correct ({s['accuracy']:.0%}, "
+        f"95% range {low:.0%}-{high:.0%})"
+    )
+    print(
+        f"query failed: {s['query_failed']}; answers sent: {s['grounded']}, "
+        f"of which wrong: {s['grounded_and_wrong']}"
+    )
+    print("by kind: " + ", ".join(f"{k} {v}" for k, v in s["by"].items()))
+    print(
+        f"latency p50 {s['p50_seconds']:.1f}s, p95 {s['p95_seconds']:.1f}s; "
+        f"tokens in {s['prompt_tokens']:,}, out {s['output_tokens']:,}"
+    )
+    print(f"saved {s['saved']}")
 
 
 def print_status(conn):

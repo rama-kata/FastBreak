@@ -1,0 +1,121 @@
+"""Score the agent on the approved test questions.
+
+A question is correct when the agent's query returns the same rows as the question's SQL
+(`evals.same_answer`). Frozen questions compare against their saved answer; questions about
+the current season run their SQL now. Each run is saved as one JSON line per question in
+evals/results/, with the summary as the last line, so runs can be compared later.
+"""
+
+import json
+import math
+from collections import defaultdict
+from datetime import UTC, datetime
+from pathlib import Path
+
+from fastbreak import evals
+from fastbreak.agent.agent import ask
+
+RESULTS = Path("evals/results")
+
+
+def expected_rows(conn, question, answers=evals.ANSWERS):
+    if question.frozen:
+        return evals.frozen_answer(question, answers)
+    return evals.run_sql(conn, question.sql)
+
+
+def wilson(correct, total, z=1.96):
+    """95% range for the true accuracy, given `correct` out of `total`."""
+    if total == 0:
+        return 0.0, 0.0
+    p = correct / total
+    d = 1 + z * z / total
+    centre = (p + z * z / (2 * total)) / d
+    half = z * math.sqrt(p * (1 - p) / total + z * z / (4 * total * total)) / d
+    return centre - half, centre + half
+
+
+def percentile(values, p):
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, math.ceil(p / 100 * len(ordered)) - 1)]
+
+
+def score_one(conn, question, llm, db_path, today=None, answers=evals.ANSWERS):
+    result = ask(question.question, llm, db_path, today)
+    expected = expected_rows(conn, question, answers)
+    correct = result.error is None and evals.same_answer(
+        expected, result.rows, ordered=question.ordered, tolerance=question.tolerance
+    )
+    return {
+        "id": question.id,
+        "category": question.category,
+        "difficulty": question.difficulty,
+        "correct": correct,
+        "error": result.error,
+        "sql_attempts": result.sql_attempts,
+        "grounded": result.answer is not None,
+        "ungrounded": result.ungrounded,
+        "seconds": round(result.seconds, 3),
+        "prompt_tokens": sum(c["prompt_tokens"] for c in result.calls),
+        "output_tokens": sum(c["output_tokens"] for c in result.calls),
+        "question": question.question,
+        "sql": result.sql,
+        "rows": [list(r) for r in result.rows[:20]],
+        "expected": [list(r) for r in expected],
+        "answer": result.draft_answer,
+    }
+
+
+def summarize(records, model):
+    total = len(records)
+    correct = sum(r["correct"] for r in records)
+    low, high = wilson(correct, total)
+    answered = [r for r in records if r["error"] is None]
+    by = defaultdict(lambda: [0, 0])
+    for r in records:
+        for key in (r["category"], r["difficulty"]):
+            by[key][0] += r["correct"]
+            by[key][1] += 1
+    seconds = [r["seconds"] for r in records]
+    return {
+        "summary": True,
+        "model": model,
+        "questions": total,
+        "correct": correct,
+        "accuracy": round(correct / total, 3) if total else 0.0,
+        "accuracy_95": [round(low, 3), round(high, 3)],
+        "query_failed": total - len(answered),
+        "grounded": sum(r["grounded"] for r in answered),
+        "grounded_and_wrong": sum(r["grounded"] and not r["correct"] for r in answered),
+        "by": {k: f"{c}/{n}" for k, (c, n) in sorted(by.items())},
+        "p50_seconds": percentile(seconds, 50),
+        "p95_seconds": percentile(seconds, 95),
+        "prompt_tokens": sum(r["prompt_tokens"] for r in records),
+        "output_tokens": sum(r["output_tokens"] for r in records),
+    }
+
+
+def run(
+    conn, llm, db_path, questions, out_dir=RESULTS, today=None, answers=evals.ANSWERS, log=print
+):
+    """Score `questions` (approved only) and save the run. Returns the summary."""
+    questions = [q for q in questions if q.status == "approved"]
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H%M%SZ")
+    slug = llm.name.replace(" (thinking)", "-think").replace(":", "-").replace("/", "-")
+    path = out_dir / f"{stamp}-{slug}.jsonl"
+    records = []
+    with path.open("w") as fh:
+        for i, q in enumerate(questions, 1):
+            record = score_one(conn, q, llm, db_path, today, answers)
+            records.append(record)
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+            mark = "ok   " if record["correct"] else "WRONG" if not record["error"] else "ERROR"
+            log(f"[{i:>2}/{len(questions)}] {mark} {q.id}  ({record['seconds']:.1f}s)")
+        summary = summarize(records, llm.name)
+        fh.write(json.dumps(summary) + "\n")
+    summary["saved"] = str(path)
+    return summary
