@@ -27,7 +27,9 @@ class FakeLLM:
 
     def chat(self, messages):
         self.sent.append(messages)
-        return Reply(self.texts.pop(0), "", 10, 5, 0.25)
+        text = self.texts.pop(0)
+        cut_off = text.startswith("CUT:")
+        return Reply(text.removeprefix("CUT:"), "", 10, 5, 0.25, cut_off)
 
 
 def sql_reply(sql):
@@ -140,6 +142,22 @@ def test_two_failed_queries_give_no_answer(db_path):
     result = ask("Which teams?", llm, db_path)
     assert result.answer is None and result.error.startswith("query failed")
     assert len(llm.sent) == 2  # no answer call after the query failed
+
+
+def test_a_cut_off_query_is_retried_not_run(db_path):
+    llm = FakeLLM(
+        "CUT:" + sql_reply("SELECT COUNT(*) FROM teams"), sql_reply(TEAMS), "GSW and LAL."
+    )
+    result = ask("Which teams?", llm, db_path)
+    assert (result.sql_attempts, result.rows) == (2, [("GSW",), ("LAL",)])
+    assert "cut off" in llm.sent[1][-1]["content"]
+    assert [c["cut_off"] for c in result.calls] == [True, False, False]
+
+
+def test_a_cut_off_answer_doesnt_go_out(db_path):
+    llm = FakeLLM(sql_reply("SELECT COUNT(*) FROM teams"), "CUT:There are 2")
+    result = ask("How many teams?", llm, db_path)
+    assert result.answer is None and result.error.startswith("the answer was cut off")
 
 
 # --- scoring --------------------------------------------------------------------------

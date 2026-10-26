@@ -34,6 +34,7 @@ def _record(result, step, reply):
             "prompt_tokens": reply.prompt_tokens,
             "output_tokens": reply.output_tokens,
             "thinking_chars": len(reply.thinking),
+            "cut_off": reply.cut_off,
         }
     )
 
@@ -55,6 +56,8 @@ def ask(question, llm, db_path, today=None):
         result.sql_attempts = attempt
         result.sql = extract_sql(reply.text)
         try:
+            if reply.cut_off:
+                raise QueryError("the reply was cut off before it finished; write a shorter query")
             query = run_readonly(db_path, result.sql)
             result.error = None
             break
@@ -82,6 +85,8 @@ def ask(question, llm, db_path, today=None):
     _record(result, "answer", reply)
     result.draft_answer = reply.text.strip()
     result.ungrounded = ungrounded_numbers(result.draft_answer, query.rows, question)
-    if not result.ungrounded:
+    if reply.cut_off:
+        result.error = "the answer was cut off before it finished"
+    elif not result.ungrounded:
         result.answer = result.draft_answer
     return result

@@ -4,6 +4,10 @@ from dataclasses import dataclass
 import httpx
 
 OLLAMA_URL = "http://localhost:11434"
+# Ollama's default context is 4,096 tokens. A thinking reply can run past 9,000, and past
+# the context Ollama silently drops the oldest text, which can be the schema in the prompt.
+CONTEXT_TOKENS = 16_384
+MAX_REPLY_TOKENS = {False: 2_048, True: 12_000}  # by whether thinking is on
 
 
 class LLMError(Exception):
@@ -17,6 +21,7 @@ class Reply:
     prompt_tokens: int
     output_tokens: int
     seconds: float
+    cut_off: bool = False  # the reply hit the token cap before it finished
 
 
 class Ollama:
@@ -27,7 +32,7 @@ class Ollama:
     the reply. `keep_alive` says how long Ollama keeps the model loaded after the last call.
     """
 
-    def __init__(self, model, think=False, url=OLLAMA_URL, timeout=300, keep_alive="10m"):
+    def __init__(self, model, think=False, url=OLLAMA_URL, timeout=600, keep_alive="10m"):
         self.model = model
         self.think = think
         self.keep_alive = keep_alive
@@ -44,7 +49,11 @@ class Ollama:
             "stream": False,
             "think": self.think,
             "keep_alive": self.keep_alive,
-            "options": {"temperature": 0},
+            "options": {
+                "temperature": 0,
+                "num_ctx": CONTEXT_TOKENS,
+                "num_predict": MAX_REPLY_TOKENS[bool(self.think)],
+            },
         }
         start = time.monotonic()
         try:
@@ -62,4 +71,5 @@ class Ollama:
             prompt_tokens=data.get("prompt_eval_count", 0),
             output_tokens=data.get("eval_count", 0),
             seconds=time.monotonic() - start,
+            cut_off=data.get("done_reason") == "length",
         )

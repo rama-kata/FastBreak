@@ -135,7 +135,8 @@ def eval_command(conn, args):
         f"95% range {low:.0%}-{high:.0%})"
     )
     print(
-        f"query failed: {s['query_failed']}; answers sent: {s['grounded']}, "
+        f"query failed: {s['query_failed']}; replies cut off: {s['cut_off']}; "
+        f"answers sent: {s['grounded']}, "
         f"of which wrong: {s['grounded_and_wrong']}"
     )
     print("by kind: " + ", ".join(f"{k} {v}" for k, v in s["by"].items()))
