@@ -34,7 +34,8 @@ function GameCard({ game, date }: { game: Game; date: string }) {
       )}
       <div className="flex gap-2">
         <Link
-          href={{ pathname: "/ask", query: { q: question } }}
+          href={{ pathname: "/", query: { q: question } }}
+          scroll={false}
           className="flex min-h-11 flex-1 items-center justify-center rounded-lg bg-mist text-sm font-semibold text-ink no-underline hover:text-ink hover:brightness-95"
         >
           Ask about it

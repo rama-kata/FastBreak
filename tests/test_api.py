@@ -111,7 +111,7 @@ def test_ask_streams_each_step_then_the_checked_answer(db_path):
     assert result["draft_answer"] is None
     assert result["rows"] == [["Devin Booker", 43]]
     assert result["model"] == "fake"
-    assert result["number_spans"] == [{"start": 20, "end": 22, "in_rows": True}]
+    assert result["number_spans"] == [{"start": 20, "end": 22, "in_rows": True, "grounded": True}]
     assert "calls" not in result
 
 
@@ -123,6 +123,14 @@ def test_a_held_back_answer_comes_with_its_draft_and_the_numbers_not_in_the_rows
     assert result["draft_answer"] == "The Warriors went 82 and 9."
     assert result["ungrounded"] == [82.0, 9.0]
     assert [s["in_rows"] for s in result["number_spans"]] == [False, False]
+
+
+def test_numbers_from_the_question_are_allowed_but_not_marked_as_from_the_rows(db_path):
+    client = client_for(db_path, sql_reply("SELECT 23 AS games"), "Harden had 23 50-point games.")
+    result = events(client.post("/api/ask", json={"question": "Most 50-point games?"}))[-1][1]
+    assert result["blocked"] is False
+    spans = [(s["in_rows"], s["grounded"]) for s in result["number_spans"]]
+    assert spans == [(True, True), (False, True)]
 
 
 def test_a_failed_query_is_reported_and_retried(db_path):

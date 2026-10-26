@@ -50,15 +50,19 @@ def ungrounded_numbers(answer, rows, question=""):
     return missing
 
 
-def number_spans(answer, rows):
-    """Where each number sits in `answer`, and whether the rows have it: a list of
-    (start, end, in_rows), for the web app to highlight the numbers it can trace."""
-    sources = _source_values(rows, "")
+def number_spans(answer, rows, question=""):
+    """Where each number sits in `answer`, for the web app to mark: a list of
+    (start, end, in_rows, grounded). `in_rows` numbers came from the query results;
+    `grounded` ones came from the results or the question, so the check allows them."""
+    from_rows = _source_values(rows, "")
+    from_question = [v for v, _ in numbers_in(question)]
     spans = []
     for m in NUMBER.finditer(answer):
         found = numbers_in(m.group())
         if not found:
             continue
         value, decimals = found[0]
-        spans.append((m.start(), m.end(), any(_matches(value, decimals, s) for s in sources)))
+        in_rows = any(_matches(value, decimals, s) for s in from_rows)
+        grounded = in_rows or any(_matches(value, decimals, s) for s in from_question)
+        spans.append((m.start(), m.end(), in_rows, grounded))
     return spans

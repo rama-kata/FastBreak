@@ -111,3 +111,14 @@ export function restartRun(question: string) {
   const run = newRun(question, old?.listeners);
   run.listeners.forEach((l) => l());
 }
+
+/** Show a saved answer (from History) without asking the model again. */
+export function seedRun(question: string, result: AskResult) {
+  if (runs.has(question)) return;
+  const now = Date.now();
+  runs.set(question, {
+    state: { ...INITIAL, phase: "done", startedAt: now, finishedAt: now, sql: result.sql, result },
+    listeners: new Set(),
+    controller: new AbortController(),
+  });
+}

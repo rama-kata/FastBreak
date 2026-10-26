@@ -74,7 +74,8 @@ def result_payload(result, model):
         data["draft_answer"] = None
     shown = result.answer or data["draft_answer"] or ""
     data["number_spans"] = [
-        {"start": a, "end": b, "in_rows": found} for a, b, found in number_spans(shown, result.rows)
+        {"start": a, "end": b, "in_rows": in_rows, "grounded": grounded}
+        for a, b, in_rows, grounded in number_spans(shown, result.rows, result.question)
     ]
     return data
 

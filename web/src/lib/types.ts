@@ -29,5 +29,5 @@ export type AskResult = {
   seconds: number;
   model: string;
   blocked: boolean;
-  number_spans: { start: number; end: number; in_rows: boolean }[];
+  number_spans: { start: number; end: number; in_rows: boolean; grounded: boolean }[];
 };
