@@ -39,12 +39,14 @@ def _record(result, step, reply):
     )
 
 
-def ask(question, llm, db_path, today=None):
+def ask(question, llm, db_path, today=None, on_step=None):
     """Answer `question`: write SQL, run it read-only, then answer from the rows.
 
     The answer only goes out if every number in it is in the rows (or the question). If a
-    query fails, the model sees the error and gets one more try.
+    query fails, the model sees the error and gets one more try. `on_step(name, details)`,
+    if given, hears each step as it happens, so a caller can show progress.
     """
+    step = on_step or (lambda name, details: None)
     result = Result(question)
     messages = [
         {"role": "system", "content": sql_system_prompt(today)},
@@ -55,6 +57,7 @@ def ask(question, llm, db_path, today=None):
         _record(result, "sql", reply)
         result.sql_attempts = attempt
         result.sql = extract_sql(reply.text)
+        step("sql_written", {"sql": result.sql, "attempt": attempt})
         try:
             if reply.cut_off:
                 raise QueryError("the reply was cut off before it finished; write a shorter query")
@@ -63,6 +66,7 @@ def ask(question, llm, db_path, today=None):
             break
         except QueryError as e:
             result.error = f"query failed: {e}"
+            step("query_failed", {"error": str(e), "retrying": attempt < MAX_SQL_ATTEMPTS})
             messages += [
                 {"role": "assistant", "content": reply.text},
                 {"role": "user", "content": f"That query failed: {e}\nWrite a corrected query."},
@@ -71,6 +75,7 @@ def ask(question, llm, db_path, today=None):
         return result
 
     result.columns, result.rows, result.truncated = query.columns, query.rows, query.truncated
+    step("query_done", {"row_count": len(query.rows), "truncated": query.truncated})
     reply = llm.chat(
         [
             {"role": "system", "content": ANSWER_SYSTEM_PROMPT},

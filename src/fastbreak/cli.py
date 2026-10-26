@@ -1,8 +1,11 @@
-"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions | ask | eval>."""
+"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions | ask | eval | serve>."""
 
 import argparse
+import os
 import signal
 import sys
+
+import uvicorn
 
 from fastbreak import evals
 from fastbreak.agent import evaluate
@@ -72,7 +75,16 @@ def main():
         else:
             p.add_argument("--id", action="append", help="only this question (repeatable)")
 
+    serve = commands.add_parser("serve", help="run the API the web app calls")
+    serve.add_argument(
+        "--host", default="127.0.0.1", help="address to listen on (default 127.0.0.1)"
+    )
+    serve.add_argument("--port", type=int, default=8000, help="port (default 8000)")
+
     args = parser.parse_args()
+    if args.command == "serve":
+        serve_command(args)
+        return
     conn = connect(args.db)
     init_db(conn)
     fetcher = Fetcher(CACHE_DIR)
@@ -101,6 +113,12 @@ def main():
         sys.exit("stopped. Run the same command again to carry on where it left off.")
     except LLMError as e:
         sys.exit(f"the model failed: {e}. Is Ollama running (ollama list)?")
+
+
+def serve_command(args):
+    """Model, thinking and API key come from FASTBREAK_MODEL, FASTBREAK_THINK and FASTBREAK_API_KEY."""
+    os.environ.setdefault("FASTBREAK_DB", args.db)
+    uvicorn.run("fastbreak.api.app:app_from_env", factory=True, host=args.host, port=args.port)
 
 
 def ask_command(args):
