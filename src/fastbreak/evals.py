@@ -3,6 +3,7 @@
 A predicted query is correct when it returns the same rows as the question's SQL.
 Column names and column order don't matter, and extra columns are allowed (an agent
 that also returns a player's ID or team is still right). Extra or missing rows are not.
+Text is compared ignoring case and surrounding spaces.
 """
 
 import json
@@ -63,13 +64,19 @@ def run_sql(conn, sql):
 
 
 def _sort_key(row):
-    """Sort rows of mixed types the same way every time: numbers before text, None first."""
-    return tuple((v is not None, isinstance(v, str), v if v is not None else 0) for v in row)
+    """Sort rows of mixed types the same way every time: numbers before text, None first.
+    Text sorts ignoring case, the way it's compared."""
+    return tuple(
+        (v is not None, isinstance(v, str), v.casefold() if isinstance(v, str) else v or 0)
+        for v in row
+    )
 
 
 def _close(a, b, tolerance):
     if isinstance(a, (int, float)) and isinstance(b, (int, float)):
         return abs(a - b) <= tolerance  # 27 == 27.0, and averages within the tolerance
+    if isinstance(a, str) and isinstance(b, str):
+        return a.strip().casefold() == b.strip().casefold()  # "Home" is "home"
     return a == b
 
 

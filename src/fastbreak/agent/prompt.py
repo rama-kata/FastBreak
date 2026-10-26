@@ -33,13 +33,16 @@ What the data holds and how to read it:
   game when its team_id is home_team_id or away_team_id.
 - A percentage over many games is total makes divided by total attempts.
 - Player names are stored with their accents, like 'Luka Dončić' and 'Nikola Jokić'.
-- When a question asks who has the most (or least) of something, return every row tied for
-  that value, not only the first.
+- When a question asks for the single most (or least), return every row tied for first,
+  not only one of them. When it asks for a top N ("which four players"), return N rows.
 
 How the result should look, because it is shown to the person who asked:
 - Name what each number belongs to: a player by full_name, a team by its abbreviation
   (teams.abbreviation), a season by its label. Never only an ID.
-- A single game is identified by its game_date, not its game_id.
+- A single game is identified by its game_date and both teams' abbreviations (home and
+  away), not its game_id.
+- A team's record is wins and losses as two numbers, not a win percentage.
+- Home and road games are labelled 'home' and 'away'.
 - Minutes as minutes (seconds / 60.0, rounded to 1 decimal), never raw seconds.
 - Averages rounded to 1 decimal place; a share or percentage of a total as a fraction
   between 0 and 1, rounded to 3 places.
