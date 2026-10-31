@@ -28,6 +28,8 @@ export type AskResult = {
   sql_attempts: number;
   seconds: number;
   model: string;
+  route: "simple" | "hard" | null;
+  queued_for_review: boolean;
   blocked: boolean;
   number_spans: { start: number; end: number; in_rows: boolean; grounded: boolean }[];
 };

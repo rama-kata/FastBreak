@@ -114,7 +114,13 @@ function Working({ run, question }: { run: RunState; question: string }) {
         </div>
       </div>
       <ol className="m-0 flex list-none flex-col gap-2.5 p-0 text-[15px]" aria-live="polite">
-        <Step state={state(0)}>{run.retries ? "Fixing the query after an error" : "Writing the query"}</Step>
+        <Step state={state(0)}>
+          {run.retries
+            ? "Fixing the query after an error"
+            : run.route === "hard"
+              ? "Writing the query. It's a hard one, so it's thinking it through (about a minute)"
+              : "Writing the query"}
+        </Step>
         <Step state={state(1)}>Running it on every game since 2015-16</Step>
         <Step state={state(2)}>Writing the answer and checking every number</Step>
       </ol>
@@ -292,10 +298,19 @@ function Proof({ result, highlight, summary, open }: { result: AskResult; highli
 
 function Meta({ result }: { result: AskResult }) {
   return (
-    <p className="m-0 mt-1.5 pl-1 text-[13px] text-muted">
-      <span className="font-mono">{result.model}</span> · {result.seconds} s
-      {result.sql_attempts > 1 ? ` · ${result.sql_attempts} query attempts` : ""}
-    </p>
+    <>
+      <p className="m-0 mt-1.5 pl-1 text-[13px] text-muted">
+        <span className="font-mono">{result.model}</span>
+        {result.route ? ` · ${result.route} question` : ""} · {result.seconds} s
+        {result.sql_attempts > 1 ? ` · ${result.sql_attempts} query attempts` : ""}
+      </p>
+      {result.queued_for_review && (
+        <p className="m-0 mt-1 pl-1 text-[13px] text-muted">
+          A hard question like this one gets a second look from a person, who checks the answer
+          after it&apos;s been sent.
+        </p>
+      )}
+    </>
   );
 }
 

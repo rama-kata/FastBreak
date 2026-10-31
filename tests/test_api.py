@@ -4,6 +4,8 @@ import threading
 import pytest
 from fastapi.testclient import TestClient
 
+from fastbreak import traces
+from fastbreak.agent.agent import Routed
 from fastbreak.api.app import MAX_QUESTION_CHARS, Limits, create_app
 from fastbreak.db import connect, init_db
 from tests.test_agent import FakeLLM, sql_reply
@@ -211,3 +213,35 @@ def test_a_visitor_over_the_limit_gets_429_and_the_next_question_still_runs(db_p
     refused = client.post("/api/ask", json={"question": "b"}, headers=alice)
     assert refused.status_code == 429
     assert client.post("/api/ask", json={"question": "c"}, headers=bob).status_code == 200
+
+
+def test_a_hard_question_is_routed_traced_and_queued_for_review(db_path, tmp_path):
+    def routed():
+        fast = FakeLLM("hard")
+        return Routed(fast, FakeLLM(sql_reply("SELECT 1 AS one"), "It is 1."))
+
+    traces_path = tmp_path / "traces.db"
+    client = TestClient(create_app(db_path, routed, traces_path=traces_path))
+    got = events(client.post("/api/ask", json={"question": "Longest streak?"}))
+    assert [e for e, _ in got] == ["started", "routed", "sql_written", "query_done", "result"]
+    result = got[-1][1]
+    assert (result["route"], result["queued_for_review"], result["answer"]) == (
+        "hard",
+        True,
+        "It is 1.",
+    )
+    trace_db = traces.connect(traces_path)
+    assert [q for _, _, q, _ in traces.pending_reviews(trace_db)] == ["Longest streak?"]
+
+
+def test_a_simple_question_is_traced_but_not_queued(db_path, tmp_path):
+    def routed():
+        return Routed(FakeLLM("simple", sql_reply("SELECT 1 AS one"), "It is 1."), FakeLLM())
+
+    traces_path = tmp_path / "traces.db"
+    client = TestClient(create_app(db_path, routed, traces_path=traces_path))
+    result = events(client.post("/api/ask", json={"question": "One?"}))[-1][1]
+    assert (result["route"], result["queued_for_review"]) == ("simple", False)
+    trace_db = traces.connect(traces_path)
+    assert trace_db.execute("SELECT COUNT(*) FROM traces").fetchone() == (1,)
+    assert traces.pending_reviews(trace_db) == []

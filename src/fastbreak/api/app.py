@@ -3,6 +3,9 @@
 Run it with `uv run fastbreak serve`. The web app on Vercel reaches it through a tunnel,
 so when FASTBREAK_API_KEY is set every request except /api/health must carry it in the
 X-FastBreak-Key header. The browser never sees the key: the web app's server adds it.
+
+Questions are routed by default (thinking off for simple ones, on for hard ones), each one is
+saved as a trace, and hard answers are queued for a person to check with `fastbreak review`.
 """
 
 import asyncio
@@ -21,7 +24,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from fastbreak.agent.agent import ask
+from fastbreak import traces
+from fastbreak.agent.agent import Routed, ask
 from fastbreak.agent.grounding import number_spans
 from fastbreak.agent.llm import LLMError, Ollama
 
@@ -95,12 +99,13 @@ def _sse(event, data):
     return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 
-def result_payload(result, model):
+def result_payload(result, model, queued_for_review=False):
     """What the web app needs from an agent Result. The draft only goes out when it was held back."""
     data = asdict(result)
     data.pop("steps")  # timings and tokens per step: kept in the trace, not sent to browsers
     data["seconds"] = round(result.seconds, 1)
     data["model"] = model
+    data["queued_for_review"] = queued_for_review
     data["blocked"] = result.error is None and result.answer is None
     if not data["blocked"]:
         data["draft_answer"] = None
@@ -112,8 +117,9 @@ def result_payload(result, model):
     return data
 
 
-def create_app(db_path, make_llm, api_key=None, limits=None):
-    """`make_llm()` returns the chat model to answer with; tests pass a fake one.
+def create_app(db_path, make_llm, api_key=None, limits=None, traces_path=None):
+    """`make_llm()` returns the chat model to answer with; tests pass a fake one. With
+    `traces_path`, each question is saved as a trace and hard answers are queued for review.
 
     The web app's server names the visitor in X-FastBreak-Client (their IP), which only
     counts when the API key is checked, since otherwise anyone could set it."""
@@ -158,8 +164,8 @@ def create_app(db_path, make_llm, api_key=None, limits=None):
     ):
         """Answer one question as a stream of server-sent events.
 
-        Events: `sql_written`, `query_failed`, `query_done` while it works, then `result`
-        (the answer, or why there isn't one) or `error` (the model couldn't be reached).
+        Events: `routed`, `sql_written`, `query_failed`, `query_done` while it works, then
+        `result` (the answer, or why there isn't one) or `error` (the model couldn't be reached).
         """
         client = (api_key and x_fastbreak_client) or (
             request.client.host if request.client else "?"
@@ -176,11 +182,27 @@ def create_app(db_path, make_llm, api_key=None, limits=None):
         def send(event, data):
             loop.call_soon_threadsafe(events.put_nowait, (event, data))
 
+        def save_trace(result, model):
+            """Returns whether the answer went into the review queue. A trace that can't be
+            saved is logged, not shown: the visitor's answer matters more than its trace."""
+            if traces_path is None:
+                return False
+            try:
+                with closing(traces.connect(traces_path)) as trace_db:
+                    trace_id = traces.record(trace_db, result, model, "ask")
+                    if result.route == "hard" and result.query_ran:
+                        traces.queue_for_review(trace_db, trace_id)
+                        return True
+            except sqlite3.Error:
+                log.exception("couldn't save the trace")
+            return False
+
         def work():
             try:
                 llm = make_llm()
                 result = ask(body.question.strip(), llm, db_path, on_step=send)
-                send("result", result_payload(result, llm.name))
+                queued = save_trace(result, llm.name)
+                send("result", result_payload(result, llm.name, queued))
             except LLMError as e:
                 send("error", {"error": f"the model failed: {e}"})
             except Exception as e:  # the stream must always end with an event
@@ -214,10 +236,20 @@ def create_app(db_path, make_llm, api_key=None, limits=None):
 def app_from_env():
     """The app `fastbreak serve` runs, configured from environment variables."""
     model = os.environ.get("FASTBREAK_MODEL", "qwen3:14b")
-    think = os.environ.get("FASTBREAK_THINK", "1") != "0"
+    # FASTBREAK_MODE: 'route' (the default), 'think' (always on) or 'fast' (always off).
+    mode = os.environ.get("FASTBREAK_MODE", "route")
+    if mode not in ("route", "think", "fast"):
+        raise ValueError(f"FASTBREAK_MODE must be route, think or fast, not {mode!r}")
+
+    def make_llm():
+        if mode == "route":
+            return Routed(Ollama(model), Ollama(model, think=True))
+        return Ollama(model, think=mode == "think")
+
     return create_app(
         db_path=os.environ.get("FASTBREAK_DB", "data/nba.db"),
-        make_llm=lambda: Ollama(model, think=think),
+        traces_path=os.environ.get("FASTBREAK_TRACES", traces.TRACES_PATH),
+        make_llm=make_llm,
         api_key=os.environ.get("FASTBREAK_API_KEY") or None,
         limits=Limits(
             int(os.environ.get("FASTBREAK_HOURLY_LIMIT", HOURLY_LIMIT)),

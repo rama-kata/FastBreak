@@ -7,6 +7,7 @@ export type RunState = {
   startedAt: number;
   finishedAt: number | null;
   sql: string | null;
+  route: "simple" | "hard" | null; // set once the router has decided
   retries: number;
   result: AskResult | null;
   error: string | null;
@@ -26,7 +27,8 @@ function finish(run: Run, patch: Partial<RunState>) {
 }
 
 function handle(run: Run, event: string, data: Record<string, unknown>) {
-  if (event === "sql_written") update(run, { phase: "running", sql: data.sql as string });
+  if (event === "routed") update(run, { route: data.route as RunState["route"] });
+  else if (event === "sql_written") update(run, { phase: "running", sql: data.sql as string });
   else if (event === "query_failed" && data.retrying)
     update(run, { phase: "writing", retries: run.state.retries + 1 });
   else if (event === "query_done") update(run, { phase: "checking" });
@@ -72,7 +74,7 @@ async function start(question: string, run: Run) {
 }
 
 export const INITIAL: RunState = {
-  phase: "writing", startedAt: 0, finishedAt: null, sql: null, retries: 0, result: null,
+  phase: "writing", startedAt: 0, finishedAt: null, sql: null, route: null, retries: 0, result: null,
   error: null,
 };
 

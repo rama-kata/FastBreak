@@ -156,8 +156,10 @@ def main():
 
 
 def serve_command(args):
-    """Model, thinking and API key come from FASTBREAK_MODEL, FASTBREAK_THINK and FASTBREAK_API_KEY."""
+    """Model, mode (route, think or fast) and API key come from FASTBREAK_MODEL, FASTBREAK_MODE
+    and FASTBREAK_API_KEY."""
     os.environ.setdefault("FASTBREAK_DB", args.db)
+    os.environ.setdefault("FASTBREAK_TRACES", args.traces)
     uvicorn.run("fastbreak.api.app:app_from_env", factory=True, host=args.host, port=args.port)
 
 
