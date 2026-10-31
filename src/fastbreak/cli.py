@@ -1,10 +1,10 @@
-"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions | ask | eval>."""
+"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions | ask | eval | metrics>."""
 
 import argparse
 import signal
 import sys
 
-from fastbreak import evals
+from fastbreak import evals, metrics, traces
 from fastbreak.agent import evaluate
 from fastbreak.agent.agent import ask
 from fastbreak.agent.llm import LLMError, Ollama
@@ -29,6 +29,11 @@ def stop_on_sigterm():
 def main():
     parser = argparse.ArgumentParser(prog="fastbreak", description="NBA stats pipeline")
     parser.add_argument("--db", default=DB_PATH, help=f"database file (default {DB_PATH})")
+    parser.add_argument(
+        "--traces",
+        default=traces.TRACES_PATH,
+        help=f"where questions are traced (default {traces.TRACES_PATH})",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
 
     seasons = commands.add_parser("load-seasons", help="load game logs for every season")
@@ -72,6 +77,13 @@ def main():
         else:
             p.add_argument("--id", action="append", help="only this question (repeatable)")
 
+    show_metrics = commands.add_parser(
+        "metrics", help="latency per step, cost per correct answer, pipeline failures"
+    )
+    show_metrics.add_argument(
+        "--source", choices=("ask", "eval"), help="latency for only these traces"
+    )
+
     args = parser.parse_args()
     conn = connect(args.db)
     init_db(conn)
@@ -93,6 +105,8 @@ def main():
             ask_command(args)
         elif args.command == "eval":
             eval_command(conn, args)
+        elif args.command == "metrics":
+            metrics_command(conn, args)
         else:
             print_status(conn)
     except run.RunInProgress as e:
@@ -112,7 +126,9 @@ def main():
 
 
 def ask_command(args):
-    result = ask(args.question, Ollama(args.model, think=args.think), args.db)
+    llm = Ollama(args.model, think=args.think)
+    result = ask(args.question, llm, args.db)
+    traces.record(traces.connect(args.traces), result, llm.name, "ask")
     print(f"SQL:\n{result.sql}\n")
     if result.error:
         sys.exit(result.error)
@@ -139,7 +155,13 @@ def eval_command(conn, args):
         unapproved = [q.id for q in questions if q.status != "approved"]
         if unapproved:
             sys.exit(f"not approved, so not scored: {', '.join(unapproved)}")
-    s = evaluate.run(conn, Ollama(args.model, think=args.think), args.db, questions)
+    s = evaluate.run(
+        conn,
+        Ollama(args.model, think=args.think),
+        args.db,
+        questions,
+        trace_db=traces.connect(args.traces),
+    )
     low, high = s["accuracy_95"]
     print(
         f"\n{s['model']}: {s['correct']}/{s['questions']} correct ({s['accuracy']:.0%}, "
@@ -155,7 +177,56 @@ def eval_command(conn, args):
         f"latency p50 {s['p50_seconds']:.1f}s, p95 {s['p95_seconds']:.1f}s; "
         f"tokens in {s['prompt_tokens']:,}, out {s['output_tokens']:,}"
     )
+    if s["correct"]:
+        print(
+            f"per correct answer: {s['seconds_per_correct']:.1f}s of model time, "
+            f"{s['output_tokens_per_correct']:,} output tokens"
+        )
     print(f"saved {s['saved']}")
+
+
+def metrics_command(conn, args):
+    rows = metrics.latency(traces.connect(args.traces), args.source)
+    print("latency per step (seconds)")
+    if not rows:
+        print("  no traces yet: they're recorded by `fastbreak ask` and `fastbreak eval`")
+    print(f"  {'model':<22} {'step':<10} {'count':>6} {'p50':>7} {'p95':>7}")
+    for model, step, count, p50, p95 in rows:
+        print(f"  {model:<22} {step:<10} {count:>6} {p50:>7.2f} {p95:>7.2f}")
+
+    print("\ncost per correct answer, by eval run")
+    print(
+        f"  {'run':<20} {'model':<24} {'correct':>8} {'model s':>8} {'s/right':>8} {'tok/right':>10}"
+    )
+    for r in metrics.cost():
+        mark = "" if r["finished"] else "  (stopped part-way)"
+        per = (
+            f"{r['seconds_per_correct']:>8.1f} {r['output_tokens_per_correct']:>10,.0f}"
+            if r["correct"]
+            else f"{'-':>8} {'-':>10}"
+        )
+        stamp, model = r["run"][:18], r["model"][:24]
+        print(
+            f"  {stamp:<20} {model:<24} {r['correct']:>3}/{r['questions']:<4} "
+            f"{r['seconds']:>8.0f} {per}{mark}"
+        )
+
+    steps, runs, reasons = metrics.pipeline(conn)
+    print("\npipeline failures, per game step (all time)")
+    for step, games, failed, retried in steps:
+        print(
+            f"  {step:<9} {games:>7,} games, {failed:>4} failed ({failed / games:.2%}), "
+            f"{retried:>4} needed a retry ({retried / games:.2%})"
+        )
+    print("\npipeline runs, last 30 days")
+    for kind, count, ok, failed, running in runs:
+        print(
+            f"  {kind:<9} {count:>3} runs, {ok:>3} ok, {failed:>3} failed "
+            f"({failed / count:.0%}), {running} still marked running"
+        )
+        for reason_kind, reason, n in reasons:
+            if reason_kind == kind:
+                print(f"    {n:>3} {reason}")
 
 
 def print_status(conn):

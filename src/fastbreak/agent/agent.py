@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass, field
 
 from fastbreak.agent.grounding import ungrounded_numbers
@@ -20,15 +21,25 @@ class Result:
     error: str | None = None
     query_ran: bool = False  # True once a query ran, even if the answer then failed
     sql_attempts: int = 0
-    calls: list = field(default_factory=list)  # one entry per model call
+    # One entry per step, in order: model calls ('sql', 'answer'), each query run ('query')
+    # and the grounding check ('grounding'). These become the spans of a trace.
+    steps: list = field(default_factory=list)
+
+    @property
+    def calls(self):
+        """The model calls among the steps."""
+        return [s for s in self.steps if s["step"] in MODEL_STEPS]
 
     @property
     def seconds(self):
-        return sum(c["seconds"] for c in self.calls)
+        return sum(s["seconds"] for s in self.steps)
+
+
+MODEL_STEPS = ("sql", "answer")
 
 
 def _record(result, step, reply):
-    result.calls.append(
+    result.steps.append(
         {
             "step": step,
             "seconds": round(reply.seconds, 3),
@@ -38,6 +49,11 @@ def _record(result, step, reply):
             "cut_off": reply.cut_off,
         }
     )
+
+
+def _timed(result, step, started, error=None):
+    seconds = round(time.perf_counter() - started, 3)
+    result.steps.append({"step": step, "seconds": seconds, "error": error})
 
 
 def ask(question, llm, db_path, today=None):
@@ -67,11 +83,14 @@ def ask(question, llm, db_path, today=None):
                 }
             )
             continue
+        started = time.perf_counter()
         try:
             query = run_readonly(db_path, result.sql)
+            _timed(result, "query", started)
             result.error = None
             break
         except QueryError as e:
+            _timed(result, "query", started, str(e))
             result.error = f"query failed: {e}"
             messages += [
                 {"role": "assistant", "content": reply.text},
@@ -95,7 +114,9 @@ def ask(question, llm, db_path, today=None):
     )
     _record(result, "answer", reply)
     result.draft_answer = reply.text.strip()
+    started = time.perf_counter()
     result.ungrounded = ungrounded_numbers(result.draft_answer, query.rows, question)
+    _timed(result, "grounding", started)
     if reply.cut_off:
         result.error = "the answer was cut off before it finished"
     elif not result.ungrounded:

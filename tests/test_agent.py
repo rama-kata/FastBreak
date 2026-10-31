@@ -11,7 +11,7 @@ from fastbreak.agent.grounding import numbers_in, ungrounded_numbers
 from fastbreak.agent.llm import LLMError, Reply
 from fastbreak.agent.prompt import sql_system_prompt, stats_schema
 from fastbreak.agent.sql import QueryError, extract_sql, run_readonly
-from fastbreak.db import connect, init_db
+from fastbreak.db import connect
 
 TEAMS = "SELECT abbreviation FROM teams ORDER BY abbreviation"
 
@@ -34,18 +34,6 @@ class FakeLLM:
 
 def sql_reply(sql):
     return f"```sql\n{sql}\n```"
-
-
-@pytest.fixture
-def db_path(tmp_path):
-    path = tmp_path / "test.db"
-    conn = connect(path)
-    init_db(conn)
-    conn.execute("INSERT INTO teams VALUES (1610612744, 'GSW', 'Golden State Warriors')")
-    conn.execute("INSERT INTO teams VALUES (1610612747, 'LAL', 'Los Angeles Lakers')")
-    conn.commit()
-    conn.close()
-    return path
 
 
 # --- the query ------------------------------------------------------------------------

@@ -13,7 +13,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastbreak import evals
+from fastbreak import evals, traces
 from fastbreak.agent.agent import ask
 
 RESULTS = Path("evals/results")
@@ -51,13 +51,17 @@ def percentile(values, p):
     return ordered[min(len(ordered) - 1, math.ceil(p / 100 * len(ordered)) - 1)]
 
 
-def score_one(conn, question, llm, db_path, today=None, answers=evals.ANSWERS):
+def score_one(
+    conn, question, llm, db_path, today=None, answers=evals.ANSWERS, trace_db=None, eval_run=None
+):
     result = ask(question.question, llm, db_path, today)
     expected = expected_rows(conn, question, answers)
     # Scored on the query's rows: an answer that was cut off doesn't make a right query wrong.
     correct = result.query_ran and evals.same_answer(
         expected, result.rows, ordered=question.ordered, tolerance=question.tolerance
     )
+    if trace_db is not None:
+        traces.record(trace_db, result, llm.name, "eval", eval_run, question.id, correct)
     return {
         "id": question.id,
         "category": question.category,
@@ -91,6 +95,7 @@ def summarize(records, model, finished=True):
             by[key][0] += r["correct"]
             by[key][1] += 1
     seconds = [r["seconds"] for r in records]
+    output_tokens = sum(r["output_tokens"] for r in records)
     return {
         "summary": True,
         "model": model,
@@ -107,14 +112,29 @@ def summarize(records, model, finished=True):
         "p50_seconds": percentile(seconds, 50),
         "p95_seconds": percentile(seconds, 95),
         "prompt_tokens": sum(r["prompt_tokens"] for r in records),
-        "output_tokens": sum(r["output_tokens"] for r in records),
+        "output_tokens": output_tokens,
+        # The models run locally, so cost is model time and tokens, over the right answers.
+        "seconds": round(sum(seconds), 1),
+        "seconds_per_correct": round(sum(seconds) / correct, 1) if correct else None,
+        "output_tokens_per_correct": round(output_tokens / correct) if correct else None,
     }
 
 
 def run(
-    conn, llm, db_path, questions, out_dir=RESULTS, today=None, answers=evals.ANSWERS, log=print
+    conn,
+    llm,
+    db_path,
+    questions,
+    out_dir=RESULTS,
+    today=None,
+    answers=evals.ANSWERS,
+    log=print,
+    trace_db=None,
 ):
-    """Score `questions` (approved only) and save the run. Returns the summary."""
+    """Score `questions` (approved only) and save the run. Returns the summary.
+
+    With `trace_db`, each question is also saved as a trace, tagged with the run's file name.
+    """
     questions = [q for q in questions if q.status == "approved"]
     missing = [q.id for q in questions if q.frozen and evals.frozen_answer(q, answers) is None]
     if missing:
@@ -128,7 +148,7 @@ def run(
     with path.open("w") as fh:
         try:
             for i, q in enumerate(questions, 1):
-                record = score_one(conn, q, llm, db_path, today, answers)
+                record = score_one(conn, q, llm, db_path, today, answers, trace_db, path.stem)
                 records.append(record)
                 fh.write(json.dumps(record, ensure_ascii=False) + "\n")
                 mark = "ok   " if record["correct"] else "WRONG" if record["query_ran"] else "ERROR"
