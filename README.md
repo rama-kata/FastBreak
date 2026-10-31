@@ -181,6 +181,22 @@ The agent writes one SQL query, runs it on a read-only connection (10 second
 limit, 200 rows), retries once if the query fails, then writes the answer from
 the rows. The answer is held back if a number in it isn't in the rows.
 
+**Traces and metrics**
+
+Every question asked with `fastbreak ask` or scored by `fastbreak eval` is saved
+in `data/traces.db`, one trace per question with a span for each step: writing
+the SQL, running it, writing the answer, and the grounding check.
+
+```bash
+uv run fastbreak metrics                 # latency per step, cost per correct answer, pipeline failures
+uv run fastbreak metrics --source eval   # latency from eval runs only
+sqlite3 data/traces.db "SELECT question, seconds, error FROM traces ORDER BY trace_id DESC LIMIT 5"
+```
+
+The models run locally, so cost per correct answer is measured in model time
+and output tokens, not dollars. It's worked out from the saved runs in
+`evals/results/`, so runs from before traces existed count too.
+
 To explore the data, open `notebooks/01_explore.ipynb` in VS Code and pick the
 `.venv` kernel.
 
