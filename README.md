@@ -49,8 +49,10 @@ home PC with an RTX 3060 and an RTX 2070 Super, temperature 0.
 | Baseline: schema and conventions in the prompt | 20/50 (40%) | |
 | Rules for how a result should look | 31/50 (62%) | 40/50 (80%)* |
 | Two ambiguous questions reworded, clearer rules | 33/50 (66%) | 44/50 (88%)* |
-| Context and reply-length fix (latest) | **35/50 (70%)** | **44/50 (88%)** |
-| Typical / slow answer (latest) | 5.9 s / 25 s | 55 s / 204 s |
+| Context and reply-length fix | 35/50 (70%) | **44/50 (88%)** |
+| Same, re-run with traces (latest) | **36/50 (72%)** | |
+| Typical / slow answer (latest) | 5.7 s / 26 s | 55 s / 204 s |
+| Model time per correct answer | 13 s | 79 s |
 
 \* Measured with a bug: Ollama's default 4,096-token context, which long
 reasoning overflowed, silently dropping the start of the prompt. The re-run
@@ -59,13 +61,17 @@ went each way, which is normal run-to-run variation on 50 questions.
 
 What these numbers say, and what they don't:
 
-- **50 questions is a small test.** The latest 35/50 means the true accuracy
-  is somewhere between 56% and 81% (95% range), so I compare runs question by
+- **50 questions is a small test.** The latest 36/50 means the true accuracy
+  is somewhere between 58% and 82% (95% range), so I compare runs question by
   question on the same 50, not on the headline number.
 - **Thinking more than doubles accuracy on hard questions** (5/15 to 11/15)
   for about 9 times the time, while simple questions get 30/35 in about 6
   seconds without it and 33/35 with it. That's the case for routing: fast for
   simple questions, thinking for hard ones.
+- **Writing the SQL is where the time goes.** With thinking off, a question's
+  steps take (p50 / p95): writing the SQL 4.0 s / 18.6 s, running it 0.01 s /
+  0.2 s, writing the answer 1.3 s / 2.2 s, and the grounding check under a
+  millisecond (`fastbreak metrics`).
 - **The grounding check stops invented numbers, not wrong queries.** No reply
   goes out with a number that isn't in the result, but a reply that faithfully
   reports a wrong query's rows passes the check. Only the test set catches those.
@@ -248,6 +254,19 @@ sqlite3 -header -column data/nba.db "SELECT season, COUNT(*) FROM games GROUP BY
 git status                 # first thing every session: anything unexpected?
 git restore <file>         # throw away uncommitted changes to a file
 git commit --amend         # fix the last commit, only if it isn't pushed yet
+```
+
+**Push and open a PR**
+
+Work happens on a branch, never straight on `main`.
+
+```bash
+git checkout -b feat/<name>             # start a branch for the work
+git push -u origin feat/<name>          # first push of the branch; after that, plain `git push`
+gh pr create --base main --fill         # open the PR, titled from the commit message
+gh pr view --web                        # look at it on GitHub
+gh pr merge --merge                     # merge it once it's reviewed
+git checkout main && git pull           # back on main, up to date
 ```
 
 Never force-push to `main`, and never commit `data/` or `.env`.
