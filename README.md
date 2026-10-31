@@ -44,27 +44,28 @@ Scored on the 50 approved test questions: a question counts only when the
 agent's query returns the right rows. All runs use `qwen3:14b` on Ollama, on a
 home PC with an RTX 3060 and an RTX 2070 Super, temperature 0.
 
-| Run | Thinking off | Thinking on* |
+| Run | Thinking off | Thinking on |
 |---|---|---|
 | Baseline: schema and conventions in the prompt | 20/50 (40%) | |
-| Rules for how a result should look | 31/50 (62%) | 40/50 (80%) |
-| Two ambiguous questions reworded, clearer rules | 33/50 (66%) | 44/50 (88%) |
-| Context and reply-length fix (latest) | **35/50 (70%)** | not re-run yet |
-| Typical / slow answer | 5.9 s / 25 s | 57 s / 156 s |
+| Rules for how a result should look | 31/50 (62%) | 40/50 (80%)* |
+| Two ambiguous questions reworded, clearer rules | 33/50 (66%) | 44/50 (88%)* |
+| Context and reply-length fix (latest) | **35/50 (70%)** | **44/50 (88%)** |
+| Typical / slow answer (latest) | 5.9 s / 25 s | 55 s / 204 s |
 
-\* The thinking-on runs were measured with a bug: Ollama's default 4,096-token
-context, which long reasoning overflowed, silently dropping the start of the
-prompt. They need a re-run after the fix before they count.
+\* Measured with a bug: Ollama's default 4,096-token context, which long
+reasoning overflowed, silently dropping the start of the prompt. The re-run
+after the fix scored the same 44/50, with no reply cut off, though 3 questions
+went each way, which is normal run-to-run variation on 50 questions.
 
 What these numbers say, and what they don't:
 
 - **50 questions is a small test.** The latest 35/50 means the true accuracy
   is somewhere between 56% and 81% (95% range), so I compare runs question by
   question on the same 50, not on the headline number.
-- **Thinking looks like it doubles accuracy on hard questions** (5/15 to 11/15
-  before the fix) for about 10 times the time and output tokens, while simple
-  questions get 30/35 in about 6 seconds without it. If the re-run confirms it,
-  that's the case for routing: fast for simple questions, thinking for hard ones.
+- **Thinking more than doubles accuracy on hard questions** (5/15 to 11/15)
+  for about 9 times the time, while simple questions get 30/35 in about 6
+  seconds without it and 33/35 with it. That's the case for routing: fast for
+  simple questions, thinking for hard ones.
 - **The grounding check stops invented numbers, not wrong queries.** No reply
   goes out with a number that isn't in the result, but a reply that faithfully
   reports a wrong query's rows passes the check. Only the test set catches those.
