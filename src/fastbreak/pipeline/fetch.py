@@ -11,8 +11,18 @@ import requests
 RETRYABLE = (requests.exceptions.RequestException, ValueError)
 
 
+# NBA.com answered, but with parts missing: a box score fetched while the game is still being
+# played can have no team stats yet, and nba_api's own parser then fails on the None.
+INCOMPLETE = (AttributeError, TypeError, KeyError)
+
+
 class FetchError(Exception):
     """Raised when a call still fails after every retry."""
+
+
+class IncompleteResponse(ValueError):
+    """NBA.com answered, but the data isn't all there yet. Not retried: it won't fill in
+    within a minute, and it isn't a sign of being blocked. The next run fetches it again."""
 
 
 class Fetcher:
@@ -58,6 +68,10 @@ class Fetcher:
             self._last_call = self.clock()
             try:
                 return endpoint_cls(**params, timeout=30).get_dict()
+            except INCOMPLETE as e:
+                raise IncompleteResponse(
+                    f"{endpoint_cls.__name__} came back incomplete: {type(e).__name__}: {e}"
+                ) from e
             except RETRYABLE as e:
                 last_error = e
                 if attempt < self.max_attempts:

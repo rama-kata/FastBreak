@@ -14,7 +14,7 @@ Early build. Nothing here is live yet.
 - [x] Phase 2: database schema ([schema](src/fastbreak/schema.sql))
 - [x] Phase 3: nightly data pipeline
 - [x] Phase 4: test questions with correct answers ([questions](evals/questions.toml))
-- [ ] Phase 5: first agent
+- [x] Phase 5: first agent ([results](#results-so-far), [decisions](DECISIONS.md))
 - [ ] Phase 6: traces and metrics
 - [ ] Phase 7: API and web app
 
@@ -37,6 +37,64 @@ Early build. Nothing here is live yet.
 - p50 / p95 latency for each step
 - Cost per correct answer, not per model call
 - Failure rate for each pipeline step
+
+## Results so far
+
+Scored on the 50 approved test questions: a question counts only when the
+agent's query returns the right rows. All runs use `qwen3:14b` on Ollama, on a
+home PC with an RTX 3060 and an RTX 2070 Super, temperature 0.
+
+| Run | Thinking off | Thinking on | Routed |
+|---|---|---|---|
+| Baseline: schema and conventions in the prompt | 20/50 (40%) | | |
+| Rules for how a result should look | 31/50 (62%) | 40/50 (80%)* | |
+| Two ambiguous questions reworded, clearer rules | 33/50 (66%) | 44/50 (88%)* | |
+| Context and reply-length fix | 35/50 (70%) | **44/50 (88%)** | |
+| Same, re-run with traces (latest) | **36/50 (72%)** | | **40/50 (80%)** |
+| Typical / slow answer (latest) | 5.7 s / 26 s | 55 s / 204 s | 11 s / 136 s |
+| Model time per correct answer | 13 s | 79 s | 48 s |
+
+\* Measured with a bug: Ollama's default 4,096-token context, which long
+reasoning overflowed, silently dropping the start of the prompt. The re-run
+after the fix scored the same 44/50, with no reply cut off, though 3 questions
+went each way, which is normal run-to-run variation on 50 questions.
+
+What these numbers say, and what they don't:
+
+- **50 questions is a small test.** The latest 36/50 means the true accuracy
+  is somewhere between 58% and 82% (95% range), so I compare runs question by
+  question on the same 50, not on the headline number.
+- **Thinking more than doubles accuracy on hard questions** (5/15 to 11/15)
+  for about 9 times the time, while simple questions get 30/35 in about 6
+  seconds without it and 33/35 with it. That's the case for routing: fast for
+  simple questions, thinking for hard ones.
+- **Routing lands in between, as it should.** A quick thinking-off call labels
+  each question first. Routed, the agent gets 40/50 for 48 s of model time per
+  correct answer: 4 more right than thinking off, 4 fewer than thinking on, at
+  about 60% of thinking on's time. The router plays safe: it sent 1 of the 15
+  hard questions the fast way (and that one was still right), but 11 of the 35
+  simple ones to thinking. Hard answers asked with `fastbreak ask --route` go
+  into a review queue for a person to check (`fastbreak review`).
+- **Writing the SQL is where the time goes.** With thinking off, a question's
+  steps take (p50 / p95): writing the SQL 4.0 s / 18.6 s, running it 0.01 s /
+  0.2 s, writing the answer 1.3 s / 2.2 s, and the grounding check under a
+  millisecond (`fastbreak metrics`).
+- **The grounding check stops invented numbers, not wrong queries.** No reply
+  goes out with a number that isn't in the result, but a reply that faithfully
+  reports a wrong query's rows passes the check. Only the test set catches those.
+- **A much smaller model didn't work.** OLMoE-1B-7B (about 1B parameters used
+  per token) scored 1/50: it queried columns that don't exist and answered
+  different questions. A small model for simple questions would have to be
+  fine-tuned on this schema.
+- **Some misses are format, not facts.** Several wrong answers have the right
+  numbers in another form, such as a team ID instead of its abbreviation. The
+  scorer counts them as wrong.
+- **Who checked the test answers:** I checked 12 against outside sources
+  myself; 38 were approved on Claude Code's source checks, each recorded with
+  its link in `evals/questions.toml`.
+
+Every run is saved in `evals/results/`, one line per question with the SQL,
+rows and answer, so any number here can be traced back to the queries behind it.
 
 ## Scope for version 1
 
@@ -103,7 +161,8 @@ journalctl --user -u fastbreak-nightly                 # what happened last time
 The questions the agent is scored on live in `evals/questions.toml`, each with
 the SQL that answers it. The answer that SQL returns is saved in
 `evals/answers/<id>.json`, and an agent's query counts as correct when it
-returns the same rows (any column order, extra columns allowed).
+returns the same rows (any column order, extra columns allowed, text compared
+ignoring case).
 
 ```bash
 uv run fastbreak questions show luka-73   # one question, its SQL and answer
@@ -118,6 +177,52 @@ is the easiest source), write in `notes` how you checked it, then set
 Questions about this season set `frozen = false`. Nothing is saved for them:
 the scorer runs their SQL at scoring time, because the answer changes with
 every nightly load.
+
+**Asking the agent**
+
+It needs [Ollama](https://ollama.com) running with the model pulled
+(`ollama pull qwen3:14b`).
+
+```bash
+uv run fastbreak ask "Who has the most triple-doubles since 2015?"   # SQL, rows, answer
+uv run fastbreak ask --think "..."                                   # with the model's reasoning on
+uv run fastbreak eval                                                # score every approved question
+uv run fastbreak eval --think --id luka-73                           # one question, thinking on
+```
+
+The agent writes one SQL query, runs it on a read-only connection (10 second
+limit, 200 rows), retries once if the query fails, then writes the answer from
+the rows. The answer is held back if a number in it isn't in the rows.
+
+**Routing and review**
+
+```bash
+uv run fastbreak ask --route "..."         # simple questions fast, hard ones with thinking
+uv run fastbreak eval --route              # score the routed agent; shows how the router did
+uv run fastbreak review                    # hard answers waiting for a person to check
+uv run fastbreak review 52                 # one of them: question, SQL, rows and answer
+uv run fastbreak review 52 right --note "matches Basketball-Reference"
+uv run fastbreak review 52 --as-question   # a draft entry for evals/questions.toml
+```
+
+A review happens after the answer has gone out: nothing waits on a person. A
+reviewed answer with a checked result is a ready-made new test question.
+
+**Traces and metrics**
+
+Every question asked with `fastbreak ask` or scored by `fastbreak eval` is saved
+in `data/traces.db`, one trace per question with a span for each step: writing
+the SQL, running it, writing the answer, and the grounding check.
+
+```bash
+uv run fastbreak metrics                 # latency per step, cost per correct answer, pipeline failures
+uv run fastbreak metrics --source eval   # latency from eval runs only
+sqlite3 data/traces.db "SELECT question, seconds, error FROM traces ORDER BY trace_id DESC LIMIT 5"
+```
+
+The models run locally, so cost per correct answer is measured in model time
+and output tokens, not dollars. It's worked out from the saved runs in
+`evals/results/`, so runs from before traces existed count too.
 
 To explore the data, open `notebooks/01_explore.ipynb` in VS Code and pick the
 `.venv` kernel.
@@ -170,6 +275,19 @@ sqlite3 -header -column data/nba.db "SELECT season, COUNT(*) FROM games GROUP BY
 git status                 # first thing every session: anything unexpected?
 git restore <file>         # throw away uncommitted changes to a file
 git commit --amend         # fix the last commit, only if it isn't pushed yet
+```
+
+**Push and open a PR**
+
+Work happens on a branch, never straight on `main`.
+
+```bash
+git checkout -b feat/<name>             # start a branch for the work
+git push -u origin feat/<name>          # first push of the branch; after that, plain `git push`
+gh pr create --base main --fill         # open the PR, titled from the commit message
+gh pr view --web                        # look at it on GitHub
+gh pr merge --merge                     # merge it once it's reviewed
+git checkout main && git pull           # back on main, up to date
 ```
 
 Never force-push to `main`, and never commit `data/` or `.env`.

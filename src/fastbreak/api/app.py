@@ -98,7 +98,7 @@ def _sse(event, data):
 def result_payload(result, model):
     """What the web app needs from an agent Result. The draft only goes out when it was held back."""
     data = asdict(result)
-    data.pop("calls")
+    data.pop("steps")  # timings and tokens per step: kept in the trace, not sent to browsers
     data["seconds"] = round(result.seconds, 1)
     data["model"] = model
     data["blocked"] = result.error is None and result.answer is None
