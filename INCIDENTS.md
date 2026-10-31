@@ -13,6 +13,13 @@ Format for each one:
 - Test that now catches it:
 ```
 
+## 2026-10-28: a box score with no team stats crashed the nightly run
+- What happened: nightly run #35 crashed with `AttributeError: 'NoneType' object has no attribute 'get'`, after loading the game log and before any box score. Found on 2026-10-30 by `fastbreak metrics`, which lists failed runs with their reasons.
+- Impact: none lasting. That night's box scores weren't loaded, and the run was recorded as `crashed`. The next morning's nightly re-fetched the last 3 days and loaded them.
+- Cause: the PC was off at 09:00, so the timer (`Persistent=true`) ran the job at 19:28 local time, while that evening's games were being played. NBA.com answered for a game in progress with its team stats still `null`, and `nba_api`'s own parser failed on the `None` inside the endpoint call. The fetcher only expected network errors and `ValueError`, so the error went straight past it and stopped the run.
+- Fix: the fetcher turns an `AttributeError`, `TypeError` or `KeyError` raised inside an endpoint call into `IncompleteResponse`. It's a `ValueError`, so the box score loop marks the game failed and moves on, without counting it towards "probably blocked". It isn't retried or cached, because the data won't fill in within a minute. The next nightly fetches the game again.
+- Test that now catches it: `test_an_incomplete_response_is_not_retried_or_cached` in `tests/test_fetch.py`, `test_box_scores_that_arent_filled_in_yet_dont_stop_the_run` in `tests/test_run.py`.
+
 ## 2026-10-20: a game still being played was recorded as failed
 - What happened: the first `fastbreak nightly` run under systemd, on 2026-27 opening night, reported "0 games in the game log, 1 failed". BOS @ DET (`0022600001`) was in the first quarter.
 - Impact: none on the data. The game was refused, not stored, and marked `failed`. A run late in a game could have stored partial stats until the next morning's refresh corrected them.
