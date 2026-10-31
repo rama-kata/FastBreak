@@ -15,6 +15,12 @@ def test_order_counts_when_the_question_says_so():
     assert evals.same_answer(TOP, TOP, ordered=True)
 
 
+def test_text_matches_ignoring_case_and_spaces():
+    split = [("away", 27.4), ("home", 27.5)]
+    assert evals.same_answer(split, [("Home ", 27.5), ("AWAY", 27.4)])
+    assert not evals.same_answer(split, [("Home", 27.5), ("Road", 27.4)])  # a different word
+
+
 def test_columns_can_come_back_in_any_order_with_extras():
     predicted = [(402, 201939, "Stephen Curry", "GSW"), (377, 201935, "James Harden", "HOU")]
     assert evals.same_answer(TOP, predicted)
