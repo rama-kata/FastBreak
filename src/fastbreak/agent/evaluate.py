@@ -18,6 +18,14 @@ from fastbreak.agent.agent import ask
 RESULTS = Path("evals/results")
 
 
+class MissingAnswers(Exception):
+    """Approved frozen questions with no saved answer, so they can't be scored."""
+
+    def __init__(self, ids):
+        super().__init__(", ".join(ids))
+        self.ids = ids
+
+
 def expected_rows(conn, question, answers=evals.ANSWERS):
     if question.frozen:
         return evals.frozen_answer(question, answers)
@@ -45,7 +53,8 @@ def percentile(values, p):
 def score_one(conn, question, llm, db_path, today=None, answers=evals.ANSWERS):
     result = ask(question.question, llm, db_path, today)
     expected = expected_rows(conn, question, answers)
-    correct = result.error is None and evals.same_answer(
+    # Scored on the query's rows: an answer that was cut off doesn't make a right query wrong.
+    correct = result.query_ran and evals.same_answer(
         expected, result.rows, ordered=question.ordered, tolerance=question.tolerance
     )
     return {
@@ -54,6 +63,7 @@ def score_one(conn, question, llm, db_path, today=None, answers=evals.ANSWERS):
         "difficulty": question.difficulty,
         "correct": correct,
         "error": result.error,
+        "query_ran": result.query_ran,
         "sql_attempts": result.sql_attempts,
         "cut_off": any(c["cut_off"] for c in result.calls),
         "grounded": result.answer is not None,
@@ -73,7 +83,7 @@ def summarize(records, model):
     total = len(records)
     correct = sum(r["correct"] for r in records)
     low, high = wilson(correct, total)
-    answered = [r for r in records if r["error"] is None]
+    answered = [r for r in records if r["query_ran"]]
     by = defaultdict(lambda: [0, 0])
     for r in records:
         for key in (r["category"], r["difficulty"]):
@@ -104,6 +114,9 @@ def run(
 ):
     """Score `questions` (approved only) and save the run. Returns the summary."""
     questions = [q for q in questions if q.status == "approved"]
+    missing = [q.id for q in questions if q.frozen and evals.frozen_answer(q, answers) is None]
+    if missing:
+        raise MissingAnswers(missing)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H%M%SZ")
@@ -115,7 +128,7 @@ def run(
             record = score_one(conn, q, llm, db_path, today, answers)
             records.append(record)
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-            mark = "ok   " if record["correct"] else "WRONG" if not record["error"] else "ERROR"
+            mark = "ok   " if record["correct"] else "WRONG" if record["query_ran"] else "ERROR"
             log(f"[{i:>2}/{len(questions)}] {mark} {q.id}  ({record['seconds']:.1f}s)")
         summary = summarize(records, llm.name)
         fh.write(json.dumps(summary) + "\n")

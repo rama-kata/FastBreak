@@ -105,6 +105,8 @@ def main():
         sys.exit("stopped. Run the same command again to carry on where it left off.")
     except LLMError as e:
         sys.exit(f"the model failed: {e}. Is Ollama running (ollama list)?")
+    except evaluate.MissingAnswers as e:
+        sys.exit(f"no saved answer for: {e}. Run `uv run fastbreak questions freeze` first.")
 
 
 def ask_command(args):

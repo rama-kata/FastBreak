@@ -205,6 +205,30 @@ def test_a_live_question_is_scored_against_its_sql_now(db_path, tmp_path):
     assert summary["correct"] == 1
 
 
+def test_a_right_query_with_a_cut_off_answer_still_scores(db_path, tmp_path):
+    conn = connect(db_path)
+    live = question(id="live", frozen=False)
+    llm = FakeLLM(sql_reply(TEAMS), "CUT:GSW and")
+    summary = evaluate.run(conn, llm, db_path, [live], tmp_path, log=lambda *_: None)
+    assert (summary["correct"], summary["query_failed"], summary["cut_off"]) == (1, 0, 1)
+
+
+def test_an_unfrozen_answer_stops_the_eval_before_it_starts(db_path, tmp_path):
+    conn = connect(db_path)
+    llm = FakeLLM()
+    with pytest.raises(evaluate.MissingAnswers, match="q"):
+        evaluate.run(
+            conn,
+            llm,
+            db_path,
+            [question()],
+            tmp_path / "results",
+            answers=tmp_path / "answers",
+            log=lambda *_: None,
+        )
+    assert llm.sent == [] and not (tmp_path / "results").exists()
+
+
 def test_the_accuracy_range_is_wide_for_few_questions():
     low, high = evaluate.wilson(40, 50)
     assert (round(low, 2), round(high, 2)) == (0.67, 0.89)

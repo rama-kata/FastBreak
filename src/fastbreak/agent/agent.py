@@ -18,6 +18,7 @@ class Result:
     draft_answer: str = ""  # what the model wrote, kept even when it doesn't go out
     ungrounded: list = field(default_factory=list)  # numbers in the draft not in the rows
     error: str | None = None
+    query_ran: bool = False  # True once a query ran, even if the answer then failed
     sql_attempts: int = 0
     calls: list = field(default_factory=list)  # one entry per model call
 
@@ -71,6 +72,7 @@ def ask(question, llm, db_path, today=None):
         return result
 
     result.columns, result.rows, result.truncated = query.columns, query.rows, query.truncated
+    result.query_ran = True
     reply = llm.chat(
         [
             {"role": "system", "content": ANSWER_SYSTEM_PROMPT},
