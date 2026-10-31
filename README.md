@@ -44,15 +44,15 @@ Scored on the 50 approved test questions: a question counts only when the
 agent's query returns the right rows. All runs use `qwen3:14b` on Ollama, on a
 home PC with an RTX 3060 and an RTX 2070 Super, temperature 0.
 
-| Run | Thinking off | Thinking on |
-|---|---|---|
-| Baseline: schema and conventions in the prompt | 20/50 (40%) | |
-| Rules for how a result should look | 31/50 (62%) | 40/50 (80%)* |
-| Two ambiguous questions reworded, clearer rules | 33/50 (66%) | 44/50 (88%)* |
-| Context and reply-length fix | 35/50 (70%) | **44/50 (88%)** |
-| Same, re-run with traces (latest) | **36/50 (72%)** | |
-| Typical / slow answer (latest) | 5.7 s / 26 s | 55 s / 204 s |
-| Model time per correct answer | 13 s | 79 s |
+| Run | Thinking off | Thinking on | Routed |
+|---|---|---|---|
+| Baseline: schema and conventions in the prompt | 20/50 (40%) | | |
+| Rules for how a result should look | 31/50 (62%) | 40/50 (80%)* | |
+| Two ambiguous questions reworded, clearer rules | 33/50 (66%) | 44/50 (88%)* | |
+| Context and reply-length fix | 35/50 (70%) | **44/50 (88%)** | |
+| Same, re-run with traces (latest) | **36/50 (72%)** | | **40/50 (80%)** |
+| Typical / slow answer (latest) | 5.7 s / 26 s | 55 s / 204 s | 11 s / 136 s |
+| Model time per correct answer | 13 s | 79 s | 48 s |
 
 \* Measured with a bug: Ollama's default 4,096-token context, which long
 reasoning overflowed, silently dropping the start of the prompt. The re-run
@@ -68,6 +68,13 @@ What these numbers say, and what they don't:
   for about 9 times the time, while simple questions get 30/35 in about 6
   seconds without it and 33/35 with it. That's the case for routing: fast for
   simple questions, thinking for hard ones.
+- **Routing lands in between, as it should.** A quick thinking-off call labels
+  each question first. Routed, the agent gets 40/50 for 48 s of model time per
+  correct answer: 4 more right than thinking off, 4 fewer than thinking on, at
+  about 60% of thinking on's time. The router plays safe: it sent 1 of the 15
+  hard questions the fast way (and that one was still right), but 11 of the 35
+  simple ones to thinking. Hard answers asked with `fastbreak ask --route` go
+  into a review queue for a person to check (`fastbreak review`).
 - **Writing the SQL is where the time goes.** With thinking off, a question's
   steps take (p50 / p95): writing the SQL 4.0 s / 18.6 s, running it 0.01 s /
   0.2 s, writing the answer 1.3 s / 2.2 s, and the grounding check under a
@@ -186,6 +193,20 @@ uv run fastbreak eval --think --id luka-73                           # one quest
 The agent writes one SQL query, runs it on a read-only connection (10 second
 limit, 200 rows), retries once if the query fails, then writes the answer from
 the rows. The answer is held back if a number in it isn't in the rows.
+
+**Routing and review**
+
+```bash
+uv run fastbreak ask --route "..."         # simple questions fast, hard ones with thinking
+uv run fastbreak eval --route              # score the routed agent; shows how the router did
+uv run fastbreak review                    # hard answers waiting for a person to check
+uv run fastbreak review 52                 # one of them: question, SQL, rows and answer
+uv run fastbreak review 52 right --note "matches Basketball-Reference"
+uv run fastbreak review 52 --as-question   # a draft entry for evals/questions.toml
+```
+
+A review happens after the answer has gone out: nothing waits on a person. A
+reviewed answer with a checked result is a ready-made new test question.
 
 **Traces and metrics**
 
