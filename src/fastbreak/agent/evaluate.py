@@ -3,7 +3,8 @@
 A question is correct when the agent's query returns the same rows as the question's SQL
 (`evals.same_answer`). Frozen questions compare against their saved answer; questions about
 the current season run their SQL now. Each run is saved as one JSON line per question in
-evals/results/, with the summary as the last line, so runs can be compared later.
+evals/results/, with the summary as the last line, so runs can be compared later. A run that
+stops part-way still gets its summary, with `finished` false.
 """
 
 import json
@@ -79,7 +80,7 @@ def score_one(conn, question, llm, db_path, today=None, answers=evals.ANSWERS):
     }
 
 
-def summarize(records, model):
+def summarize(records, model, finished=True):
     total = len(records)
     correct = sum(r["correct"] for r in records)
     low, high = wilson(correct, total)
@@ -93,6 +94,7 @@ def summarize(records, model):
     return {
         "summary": True,
         "model": model,
+        "finished": finished,
         "questions": total,
         "correct": correct,
         "accuracy": round(correct / total, 3) if total else 0.0,
@@ -124,12 +126,17 @@ def run(
     path = out_dir / f"{stamp}-{slug}.jsonl"
     records = []
     with path.open("w") as fh:
-        for i, q in enumerate(questions, 1):
-            record = score_one(conn, q, llm, db_path, today, answers)
-            records.append(record)
-            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-            mark = "ok   " if record["correct"] else "WRONG" if record["query_ran"] else "ERROR"
-            log(f"[{i:>2}/{len(questions)}] {mark} {q.id}  ({record['seconds']:.1f}s)")
+        try:
+            for i, q in enumerate(questions, 1):
+                record = score_one(conn, q, llm, db_path, today, answers)
+                records.append(record)
+                fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+                mark = "ok   " if record["correct"] else "WRONG" if record["query_ran"] else "ERROR"
+                log(f"[{i:>2}/{len(questions)}] {mark} {q.id}  ({record['seconds']:.1f}s)")
+        except BaseException:  # the model failed, or Ctrl-C: save what was scored, then stop
+            fh.write(json.dumps(summarize(records, llm.name, finished=False)) + "\n")
+            log(f"stopped after {len(records)} of {len(questions)} questions; saved to {path}")
+            raise
         summary = summarize(records, llm.name)
         fh.write(json.dumps(summary) + "\n")
     summary["saved"] = str(path)

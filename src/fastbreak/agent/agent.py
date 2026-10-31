@@ -56,9 +56,18 @@ def ask(question, llm, db_path, today=None):
         _record(result, "sql", reply)
         result.sql_attempts = attempt
         result.sql = extract_sql(reply.text)
+        if reply.cut_off:
+            # Not sent back: the half-finished reply would only fill the context of the retry.
+            result.error = "query failed: the reply was cut off before it finished"
+            messages.append(
+                {
+                    "role": "user",
+                    "content": "Your last reply was cut off before it finished. "
+                    "Write the query again, with less working and a shorter query.",
+                }
+            )
+            continue
         try:
-            if reply.cut_off:
-                raise QueryError("the reply was cut off before it finished; write a shorter query")
             query = run_readonly(db_path, result.sql)
             result.error = None
             break

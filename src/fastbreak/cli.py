@@ -98,7 +98,9 @@ def main():
     except run.RunInProgress as e:
         sys.exit(f"{e}. Stop it first, or wait for it to finish (uv run fastbreak status).")
     except KeyboardInterrupt:
-        if args.command in ("ask", "eval"):
+        if args.command == "ask":
+            sys.exit("stopped.")
+        if args.command == "eval":
             sys.exit(
                 "stopped. An eval doesn't resume: running it again starts from the first question."
             )
@@ -134,6 +136,9 @@ def eval_command(conn, args):
         if unknown:
             sys.exit(f"no such question: {', '.join(sorted(unknown))}")
         questions = [q for q in questions if q.id in args.id]
+        unapproved = [q.id for q in questions if q.status != "approved"]
+        if unapproved:
+            sys.exit(f"not approved, so not scored: {', '.join(unapproved)}")
     s = evaluate.run(conn, Ollama(args.model, think=args.think), args.db, questions)
     low, high = s["accuracy_95"]
     print(
