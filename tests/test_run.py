@@ -10,7 +10,7 @@ import pytest
 from fastbreak import cli
 from fastbreak.db import connect, init_db
 from fastbreak.pipeline import run
-from fastbreak.pipeline.fetch import FetchError
+from fastbreak.pipeline.fetch import FetchError, IncompleteResponse
 
 FIXTURES = Path(__file__).parent / "fixtures"
 GAMES = ["0022400061", "0022400071", "0022400147"]  # opening night, overtime, Mexico City
@@ -24,8 +24,9 @@ def fixture(name):
 class FakeFetcher:
     """Serves the 2024-25 fixtures. Can fail for chosen games, or crash after N box scores."""
 
-    def __init__(self, failing=(), crash_after=None):
+    def __init__(self, failing=(), crash_after=None, incomplete=()):
         self.failing = set(failing)
+        self.incomplete = set(incomplete)  # answered, but the box score isn't filled in yet
         self.crash_after = crash_after
         self.boxscore_calls = []
         self.refreshed = []  # endpoint names called with refresh=True, skipping the cache
@@ -47,6 +48,8 @@ class FakeFetcher:
         self.boxscore_calls.append(game_id)
         if game_id in self.failing:
             raise FetchError(f"BoxScoreTraditionalV3 failed after 5 attempts: {game_id}")
+        if game_id in self.incomplete:
+            raise IncompleteResponse(f"BoxScoreTraditionalV3 came back incomplete: {game_id}")
         return fixture(f"boxscore_{game_id}.json")
 
 
@@ -158,6 +161,18 @@ def test_it_stops_after_too_many_failures_in_a_row(db):
     last_run = db.execute("SELECT status, error FROM ingest_runs ORDER BY run_id DESC").fetchone()
     assert last_run[0] == "failed"
     assert "probably blocked" in last_run[1]
+
+
+def test_box_scores_that_arent_filled_in_yet_dont_stop_the_run(db):
+    run.ingest_season(db, FakeFetcher(), "2024-25", "Regular Season")
+    in_progress = FakeFetcher(incomplete=GAMES)
+    assert run.ingest_boxscores(db, in_progress, max_failures_in_row=2, log=lambda _: None) == (
+        0,
+        3,
+    )
+    assert len(in_progress.boxscore_calls) == 3  # every game tried: not a sign of being blocked
+    assert last_run(db) == ("ok", None)
+    assert {s[0] for s in steps(db, "boxscore").values()} == {"failed"}
 
 
 def last_run(db):

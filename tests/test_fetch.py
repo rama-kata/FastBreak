@@ -1,6 +1,6 @@
 import pytest
 
-from fastbreak.pipeline.fetch import Fetcher, FetchError
+from fastbreak.pipeline.fetch import Fetcher, FetchError, IncompleteResponse
 
 
 class FakeEndpoint:
@@ -15,6 +15,17 @@ class FakeEndpoint:
 
     def get_dict(self):
         return {"params": self.params}
+
+
+class HalfFinishedBoxScore:
+    """What nba_api does with a box score whose team stats are still null."""
+
+    calls = 0
+
+    def __init__(self, timeout=None, **params):
+        HalfFinishedBoxScore.calls += 1
+        stats = None
+        stats.get("points")
 
 
 class FakeClock:
@@ -90,3 +101,11 @@ def test_waits_grow_between_retries(fetcher, clock):
         fetcher.get(FakeEndpoint, season="2024-25")
     assert len(clock.sleeps) == 4  # one wait between each of the 5 attempts
     assert all(later > earlier for earlier, later in zip(clock.sleeps, clock.sleeps[1:]))
+
+
+def test_an_incomplete_response_is_not_retried_or_cached(fetcher, tmp_path):
+    HalfFinishedBoxScore.calls = 0
+    with pytest.raises(IncompleteResponse, match="came back incomplete: AttributeError"):
+        fetcher.get(HalfFinishedBoxScore, game_id="0022600101")
+    assert HalfFinishedBoxScore.calls == 1
+    assert list(tmp_path.glob("*.json")) == []
