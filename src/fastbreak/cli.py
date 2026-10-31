@@ -6,7 +6,7 @@ import sys
 
 from fastbreak import evals, metrics, traces
 from fastbreak.agent import evaluate
-from fastbreak.agent.agent import ask
+from fastbreak.agent.agent import Routed, ask
 from fastbreak.agent.llm import LLMError, Ollama
 from fastbreak.db import connect, init_db
 from fastbreak.pipeline import run
@@ -71,7 +71,13 @@ def main():
         p.add_argument(
             "--model", default=DEFAULT_MODEL, help=f"Ollama model (default {DEFAULT_MODEL})"
         )
-        p.add_argument("--think", action="store_true", help="turn the model's reasoning on")
+        mode = p.add_mutually_exclusive_group()
+        mode.add_argument("--think", action="store_true", help="turn the model's reasoning on")
+        mode.add_argument(
+            "--route",
+            action="store_true",
+            help="a quick call decides: thinking off for simple questions, on for hard ones",
+        )
         if name == "ask":
             p.add_argument("question")
         else:
@@ -82,6 +88,16 @@ def main():
     )
     show_metrics.add_argument(
         "--source", choices=("ask", "eval"), help="latency for only these traces"
+    )
+
+    review = commands.add_parser(
+        "review", help="check answers to hard questions after they went out"
+    )
+    review.add_argument("id", nargs="?", type=int, help="the trace to show or mark")
+    review.add_argument("verdict", nargs="?", choices=("right", "wrong"), help="mark it")
+    review.add_argument("--note", help="why, with the verdict")
+    review.add_argument(
+        "--as-question", action="store_true", help="print it as a draft test question"
     )
 
     args = parser.parse_args()
@@ -107,6 +123,8 @@ def main():
             eval_command(conn, args)
         elif args.command == "metrics":
             metrics_command(conn, args)
+        elif args.command == "review":
+            review_command(args)
         else:
             print_status(conn)
     except run.RunInProgress as e:
@@ -126,9 +144,14 @@ def main():
 
 
 def ask_command(args):
-    llm = Ollama(args.model, think=args.think)
+    llm = model(args)
     result = ask(args.question, llm, args.db)
-    traces.record(traces.connect(args.traces), result, llm.name, "ask")
+    trace_db = traces.connect(args.traces)
+    trace_id = traces.record(trace_db, result, llm.name, "ask")
+    if result.route:
+        print(f"Route: {result.route}\n")
+    if result.route == "hard" and result.query_ran:
+        traces.queue_for_review(trace_db, trace_id)
     print(f"SQL:\n{result.sql}\n")
     if result.error:
         sys.exit(result.error)
@@ -143,6 +166,61 @@ def ask_command(args):
     else:
         print(f"\n{result.answer}")
     print(f"\n({result.seconds:.1f}s, {len(result.calls)} model calls)")
+    if result.route == "hard" and result.query_ran:
+        print(f"Queued for review as #{trace_id} (uv run fastbreak review {trace_id}).")
+
+
+def model(args):
+    if args.route:
+        return Routed(Ollama(args.model), Ollama(args.model, think=True))
+    return Ollama(args.model, think=args.think)
+
+
+def review_command(args):
+    trace_db = traces.connect(args.traces)
+    if args.id is None:
+        pending = traces.pending_reviews(trace_db)
+        if not pending:
+            print("nothing waiting for review")
+        for trace_id, started, question, answer in pending:
+            print(f"#{trace_id}  {started[:16]}  {question}")
+            print(f"      {(answer or '(no answer)')[:100]}")
+        return
+    t = traces.review_details(trace_db, args.id)
+    if t is None:
+        sys.exit(f"no trace #{args.id}")
+    if args.verdict:
+        traces.mark_review(trace_db, args.id, args.verdict, args.note)
+        print(f"#{args.id} marked {args.verdict}")
+        return
+    if args.as_question:
+        print(draft_question(t))
+        return
+    sent = "sent" if t["answered"] else "held back"
+    print(f"#{t['trace_id']}  {t['started_at']}  {t['model']}, route {t['route'] or '-'}")
+    print(f"review: {t['review'] or 'not queued'}{'  (' + t['note'] + ')' if t['note'] else ''}")
+    print(f"\nQuestion: {t['question']}\n\nSQL:\n{t['sql']}\n")
+    print(f"Rows ({', '.join(t['columns'])}), {t['row_count']} in all:")
+    for row in t["rows"]:
+        print(f"  {tuple(row)}")
+    print(f"\nAnswer ({sent}): {t['answer']}")
+    print(f'\nMark it: uv run fastbreak review {t["trace_id"]} right|wrong --note "..."')
+
+
+def draft_question(t):
+    """A trace as a draft entry for evals/questions.toml, to check and paste in."""
+    slug = "-".join(t["question"].lower().replace("'", "").split()[:6]).strip("?.,")
+    return f"""[[question]]
+id = "{slug}"
+status = "draft"
+question = "{t["question"]}"
+category = ""          # lookup, ranking, count, split, team, streak or edge
+difficulty = "{t["route"] or "hard"}"
+notes = "From review of trace #{t["trace_id"]}: {t["note"] or ""}"
+sql = \"\"\"
+{(t["sql"] or "").strip()}
+\"\"\"
+"""
 
 
 def eval_command(conn, args):
@@ -157,7 +235,7 @@ def eval_command(conn, args):
             sys.exit(f"not approved, so not scored: {', '.join(unapproved)}")
     s = evaluate.run(
         conn,
-        Ollama(args.model, think=args.think),
+        model(args),
         args.db,
         questions,
         trace_db=traces.connect(args.traces),
@@ -177,6 +255,13 @@ def eval_command(conn, args):
         f"latency p50 {s['p50_seconds']:.1f}s, p95 {s['p95_seconds']:.1f}s; "
         f"tokens in {s['prompt_tokens']:,}, out {s['output_tokens']:,}"
     )
+    if "routing" in s:
+        r = s["routing"]
+        print(
+            f"routing: agrees with the test set on {r['agrees']}; hard sent fast "
+            f"{r['hard_sent_fast']}, simple sent to thinking {r['simple_sent_thinking']}"
+        )
+        print("  " + ", ".join(f"{k} {v}" for k, v in r["by"].items()))
     if s["correct"]:
         print(
             f"per correct answer: {s['seconds_per_correct']:.1f}s of model time, "

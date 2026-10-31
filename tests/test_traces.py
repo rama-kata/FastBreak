@@ -1,8 +1,10 @@
 import json
+import sqlite3
 
 from fastbreak import metrics, traces
 from fastbreak.agent import evaluate
-from fastbreak.agent.agent import ask
+from fastbreak.agent.agent import Routed, ask
+from fastbreak.agent.router import route
 from fastbreak.db import connect
 from tests.test_agent import TEAMS, FakeLLM, question, sql_reply
 
@@ -86,3 +88,68 @@ def test_pipeline_failures_say_why(db_path):
     _, runs, reasons = metrics.pipeline(conn)
     assert runs == [("boxscores", 3, 1, 2, 0)]  # the 2020 run is older than 30 days
     assert reasons == [("boxscores", "probably blocked", 2)]
+
+
+def test_a_hard_question_goes_to_thinking_and_a_simple_one_doesnt(db_path):
+    fast = FakeLLM("hard", sql_reply("SELECT COUNT(*) FROM teams"), "There are 2 teams.")
+    thinking = FakeLLM(sql_reply(TEAMS), "GSW and LAL.")
+    result = ask(
+        "Which teams?",
+        Routed(FakeLLM("simple", sql_reply(TEAMS), "GSW and LAL."), thinking),
+        db_path,
+    )
+    assert (result.route, thinking.sent) == ("simple", [])
+    result = ask("Which teams?", Routed(fast, thinking), db_path)
+    assert result.route == "hard" and len(thinking.sent) == 2  # its SQL and answer calls
+    assert [s["step"] for s in result.steps][:2] == ["route", "sql"]
+
+
+def test_an_unclear_route_counts_as_hard():
+    assert route("Which teams?", FakeLLM("Hmm, maybe medium?"))[0] == "hard"
+    assert route("Which teams?", FakeLLM("Simple."))[0] == "simple"
+
+
+def test_a_routed_eval_reports_how_the_router_did(db_path, tmp_path):
+    conn = connect(db_path)
+    simple, hard = question(id="s", frozen=False), question(id="h", frozen=False, difficulty="hard")
+    fast = FakeLLM(
+        "simple", sql_reply(TEAMS), "GSW and LAL.", "simple", sql_reply(TEAMS), "GSW and LAL."
+    )
+    summary = evaluate.run(
+        conn, Routed(fast, FakeLLM()), db_path, [simple, hard], tmp_path, log=lambda *_: None
+    )
+    assert summary["routing"]["agrees"] == "1/2" and summary["routing"]["hard_sent_fast"] == 1
+    assert summary["saved"].endswith("-fake-routed.jsonl")
+
+
+def test_a_reviewed_answer_keeps_what_the_reviewer_needs(db_path, tmp_path):
+    trace_db = traces.connect(tmp_path / "traces.db")
+    llm = FakeLLM(sql_reply(TEAMS), "GSW and LAL.")
+    trace_id = traces.record(trace_db, ask("Which teams?", llm, db_path), llm.name, "ask")
+    traces.queue_for_review(trace_db, trace_id)
+    assert [p[0] for p in traces.pending_reviews(trace_db)] == [trace_id]
+
+    t = traces.review_details(trace_db, trace_id)
+    assert (t["columns"], t["rows"], t["answer"]) == (
+        ["abbreviation"],
+        [["GSW"], ["LAL"]],
+        "GSW and LAL.",
+    )
+    traces.mark_review(trace_db, trace_id, "wrong", "should be full names")
+    assert traces.pending_reviews(trace_db) == []
+    assert traces.review_details(trace_db, trace_id)["review"] == "wrong"
+
+
+def test_an_older_traces_file_gets_the_new_columns(tmp_path):
+    path = tmp_path / "traces.db"
+    old = sqlite3.connect(path)
+    old.execute(  # traces as Phase 6 made it, before route, columns, rows and answer
+        "CREATE TABLE traces (trace_id INTEGER PRIMARY KEY, started_at TEXT, source TEXT,"
+        " eval_run TEXT, question_id TEXT, question TEXT, model TEXT, sql TEXT, row_count INT,"
+        " query_ran INT, answered INT, correct INT, error TEXT, seconds REAL,"
+        " prompt_tokens INT, output_tokens INT)"
+    )
+    old.commit()
+    old.close()
+    columns = {row[1] for row in traces.connect(path).execute("PRAGMA table_info(traces)")}
+    assert {"route", "columns", "rows", "answer"} <= columns

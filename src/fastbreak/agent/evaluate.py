@@ -69,6 +69,7 @@ def score_one(
         "correct": correct,
         "error": result.error,
         "query_ran": result.query_ran,
+        "route": result.route,
         "sql_attempts": result.sql_attempts,
         "cut_off": any(c["cut_off"] for c in result.calls),
         "grounded": result.answer is not None,
@@ -96,6 +97,7 @@ def summarize(records, model, finished=True):
             by[key][1] += 1
     seconds = [r["seconds"] for r in records]
     output_tokens = sum(r["output_tokens"] for r in records)
+    routed = [r for r in records if r.get("route")]
     return {
         "summary": True,
         "model": model,
@@ -117,6 +119,25 @@ def summarize(records, model, finished=True):
         "seconds": round(sum(seconds), 1),
         "seconds_per_correct": round(sum(seconds) / correct, 1) if correct else None,
         "output_tokens_per_correct": round(output_tokens / correct) if correct else None,
+    } | ({"routing": routing(routed)} if routed else {})
+
+
+def routing(records):
+    """How the router's choices compare with the test set's simple/hard labels."""
+    pairs = defaultdict(lambda: [0, 0])  # (label, route) -> [questions, correct]
+    for r in records:
+        pairs[r["difficulty"], r["route"]][0] += 1
+        pairs[r["difficulty"], r["route"]][1] += r["correct"]
+    agree = sum(n for (label, route), (n, _) in pairs.items() if label == route)
+    return {
+        "agrees": f"{agree}/{len(records)}",
+        # The costly mistake: a hard question sent to thinking off.
+        "hard_sent_fast": pairs["hard", "simple"][0],
+        "simple_sent_thinking": pairs["simple", "hard"][0],
+        "by": {
+            f"{label}->{route}": f"{c}/{n} right"
+            for (label, route), (n, c) in sorted(pairs.items())
+        },
     }
 
 
@@ -142,7 +163,8 @@ def run(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H%M%SZ")
-    slug = llm.name.replace(" (thinking)", "-think").replace(":", "-").replace("/", "-")
+    slug = llm.name.replace(" (thinking)", "-think").replace(" (routed)", "-routed")
+    slug = slug.replace(":", "-").replace("/", "-")
     path = out_dir / f"{stamp}-{slug}.jsonl"
     records = []
     with path.open("w") as fh:

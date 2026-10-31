@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from fastbreak.agent.grounding import ungrounded_numbers
 from fastbreak.agent.prompt import ANSWER_SYSTEM_PROMPT, answer_user_prompt, sql_system_prompt
+from fastbreak.agent.router import route
 from fastbreak.agent.sql import QueryError, extract_sql, run_readonly
 
 MAX_SQL_ATTEMPTS = 2  # the first query, and one retry that sees the error
@@ -21,8 +22,9 @@ class Result:
     error: str | None = None
     query_ran: bool = False  # True once a query ran, even if the answer then failed
     sql_attempts: int = 0
-    # One entry per step, in order: model calls ('sql', 'answer'), each query run ('query')
-    # and the grounding check ('grounding'). These become the spans of a trace.
+    route: str | None = None  # 'simple' or 'hard' when the question was routed
+    # One entry per step, in order: model calls ('route', 'sql', 'answer'), each query run
+    # ('query') and the grounding check ('grounding'). These become the spans of a trace.
     steps: list = field(default_factory=list)
 
     @property
@@ -35,7 +37,17 @@ class Result:
         return sum(s["seconds"] for s in self.steps)
 
 
-MODEL_STEPS = ("sql", "answer")
+MODEL_STEPS = ("route", "sql", "answer")
+
+
+class Routed:
+    """One model run two ways: `fast` (thinking off) for simple questions, `thinking` for
+    hard ones, with `fast` deciding which a question is. Pass it to `ask` like a model."""
+
+    def __init__(self, fast, thinking):
+        self.fast = fast
+        self.thinking = thinking
+        self.name = f"{fast.name} (routed)"
 
 
 def _record(result, step, reply):
@@ -60,9 +72,14 @@ def ask(question, llm, db_path, today=None):
     """Answer `question`: write SQL, run it read-only, then answer from the rows.
 
     The answer only goes out if every number in it is in the rows (or the question). If a
-    query fails, the model sees the error and gets one more try.
+    query fails, the model sees the error and gets one more try. With a `Routed` model, a
+    quick call first decides whether the question goes to thinking off or on.
     """
     result = Result(question)
+    if isinstance(llm, Routed):
+        result.route, reply = route(question, llm.fast)
+        _record(result, "route", reply)
+        llm = llm.thinking if result.route == "hard" else llm.fast
     messages = [
         {"role": "system", "content": sql_system_prompt(today)},
         {"role": "user", "content": question},
