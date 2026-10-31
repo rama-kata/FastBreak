@@ -15,8 +15,8 @@ Early build. Nothing here is live yet.
 - [x] Phase 3: nightly data pipeline
 - [x] Phase 4: test questions with correct answers ([questions](evals/questions.toml))
 - [x] Phase 5: first agent ([results](#results-so-far), [decisions](DECISIONS.md))
-- [ ] Phase 6: traces and metrics
-- [ ] Phase 7: API and web app
+- [x] Phase 6: traces and metrics, and routing ([results](#results-so-far))
+- [ ] Phase 7: API and web app (built, not live yet)
 
 ## Goals
 
@@ -193,6 +193,33 @@ uv run fastbreak eval --think --id luka-73                           # one quest
 The agent writes one SQL query, runs it on a read-only connection (10 second
 limit, 200 rows), retries once if the query fails, then writes the answer from
 the rows. The answer is held back if a number in it isn't in the rows.
+
+**The API and the web app**
+
+```bash
+uv run fastbreak serve                     # the API on 127.0.0.1:8077, for the web app
+cd web && npm install && npm run dev       # the web app on http://localhost:3000
+```
+
+The API routes every question (`FASTBREAK_MODE=route`, or `think` / `fast` to force one
+mode), saves each one as a trace, and queues hard answers for review. It answers one
+question at a time, 10 per visitor an hour and 150 a day in all. With
+`FASTBREAK_API_KEY` set, only a caller with the key gets an answer: the web app's server
+adds it, so browsers never see it. More in [web/README.md](web/README.md).
+
+To run it as a service, next to the nightly job:
+
+```bash
+cp deploy/systemd/fastbreak-api.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now fastbreak-api.service
+curl -s localhost:8077/api/health          # {"ok":true}
+```
+
+The service reads `FASTBREAK_API_KEY` from `~/.config/fastbreak/api.env`. The web app
+on Vercel reaches it through Tailscale Funnel on port 8443
+(`tailscale funnel --bg --https=8443 http://127.0.0.1:8077`), with `FASTBREAK_API_URL`
+and the same `FASTBREAK_API_KEY` set in Vercel.
 
 **Routing and review**
 
