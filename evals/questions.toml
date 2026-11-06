@@ -136,6 +136,21 @@ WHERE g.season BETWEEN '2015-16' AND '2025-26'
 """
 
 [[question]]
+id = "most-points-game-2025-26"
+status = "draft"
+notes = "From a live miss (2026-11-05): asked 'Who scored the most points in a game last season?', the agent summed each player's season and answered Shai Gilgeous-Alexander, 2531, and the grounding check passed because 2531 was in its rows. Worded with the season so the answer can't move. Expected: Bam Adebayo, 83 vs WAS on 2026-03-10, the same game as most-points-single-game."
+question = "Who scored the most points in a game in the 2025-26 regular season?"
+category = "ranking"
+difficulty = "simple"
+sql = """
+SELECT p.full_name, g.game_date, s.pts
+FROM player_game_stats s JOIN games g USING (game_id) JOIN players p USING (player_id)
+WHERE g.season = '2025-26' AND g.season_type = 'Regular Season'
+  AND s.pts = (SELECT MAX(s2.pts) FROM player_game_stats s2 JOIN games g2 USING (game_id)
+               WHERE g2.season = '2025-26' AND g2.season_type = 'Regular Season')
+"""
+
+[[question]]
 id = "most-50-point-games"
 status = "approved"
 notes = "Claude check (match): StatMuse since 2015-16 including playoffs has Harden 23, Lillard 17, Curry 14, Giannis 10, then Dončić and Embiid 9 (https://www.statmuse.com/nba/ask/most-50-point-games-since-2015-16-including-playoffs). Four, not five: 5th and 6th are tied on 9 (Dončić and Embiid). Approved 2026-10-22 on this check."
