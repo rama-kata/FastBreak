@@ -7,7 +7,8 @@ in an answer comes from a query result you can see.
 
 ## Status
 
-Early build. Nothing here is live yet.
+Live at **https://fastbreak-eight.vercel.app**, answering from a home PC with thinking
+off (see [decisions](DECISIONS.md)).
 
 - [x] Phase 0: project setup
 - [x] Phase 1: data exploration ([notebook](notebooks/01_explore.ipynb), [decisions](DECISIONS.md))
@@ -16,7 +17,7 @@ Early build. Nothing here is live yet.
 - [x] Phase 4: test questions with correct answers ([questions](evals/questions.toml))
 - [x] Phase 5: first agent ([results](#results-so-far), [decisions](DECISIONS.md))
 - [x] Phase 6: traces and metrics, and routing ([results](#results-so-far))
-- [ ] Phase 7: API and web app (built, not live yet)
+- [x] Phase 7: API and web app ([live](https://fastbreak-eight.vercel.app))
 
 ## Goals
 
@@ -219,7 +220,10 @@ curl -s localhost:8077/api/health          # {"ok":true}
 The service reads `FASTBREAK_API_KEY` from `~/.config/fastbreak/api.env`. The web app
 on Vercel reaches it through Tailscale Funnel on port 8443
 (`tailscale funnel --bg --https=8443 http://127.0.0.1:8077`), with `FASTBREAK_API_URL`
-and the same `FASTBREAK_API_KEY` set in Vercel.
+and the same `FASTBREAK_API_KEY` set in Vercel. The live site runs with
+`FASTBREAK_MODE=fast` in `api.env`: routed, a hard question took 1.5 minutes with the page on its
+first step all that time (more in [DECISIONS.md](DECISIONS.md)). Change it there and run
+`systemctl --user restart fastbreak-api` to switch.
 
 **Routing and review**
 

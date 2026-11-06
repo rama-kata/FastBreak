@@ -106,3 +106,8 @@ Checked against the 2024-25 regular season: 26,306 player rows, 2,460 team rows,
 - Hard answers from the site go into the same review queue as `fastbreak ask --route`, after they've been sent. The page says so under the answer, and while a hard question is being worked on it says it's thinking it through, which takes about a minute.
 - The steps per call (timings and tokens) stay in the trace and aren't sent to the browser.
 
+## Going live (Nov 5 2026)
+
+- The site is at `fastbreak-eight.vercel.app`: `fastbreak.vercel.app` belongs to someone else, so Vercel gave the project that name. The per-build `*-riiny-riinys-projects.vercel.app` addresses stay behind Vercel's login.
+- The live API runs with thinking off (`FASTBREAK_MODE=fast`), not routed. Routed, a question the router called hard took 83 s on the first visitor question and 103 s on a re-run, with the page on its first step the whole time, so it looked stuck. Thinking off answered the same question in 13 s. The cost is accuracy: 36/50 (run 9) against 40/50 routed (run 10), though the two 95% ranges overlap.
+- With thinking off nothing is routed hard, so the review queue stays empty. Wrong answers still go out unflagged: the first live question ("the most points in a game last season") summed the whole season and answered 2,531, and the grounding check passed because 2,531 is in the rows. That question should go in the test set.
