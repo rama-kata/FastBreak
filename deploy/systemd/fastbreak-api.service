@@ -1,0 +1,15 @@
+[Unit]
+Description=FastBreak API: answers questions for the web app
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/FastBreak
+# FASTBREAK_API_KEY (shared with the web app on Vercel) and any limit overrides.
+EnvironmentFile=%h/.config/fastbreak/api.env
+ExecStart=%h/.local/bin/uv run fastbreak serve --host 127.0.0.1 --port 8077
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

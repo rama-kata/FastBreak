@@ -68,18 +68,22 @@ def _timed(result, step, started, error=None):
     result.steps.append({"step": step, "seconds": seconds, "error": error})
 
 
-def ask(question, llm, db_path, today=None):
+def ask(question, llm, db_path, today=None, on_step=None):
     """Answer `question`: write SQL, run it read-only, then answer from the rows.
 
     The answer only goes out if every number in it is in the rows (or the question). If a
     query fails, the model sees the error and gets one more try. With a `Routed` model, a
     quick call first decides whether the question goes to thinking off or on.
+    `on_step(name, details)`, if given, hears each step as it happens, so a caller can show
+    progress.
     """
+    step = on_step or (lambda name, details: None)
     result = Result(question)
     if isinstance(llm, Routed):
         result.route, reply = route(question, llm.fast)
         _record(result, "route", reply)
         llm = llm.thinking if result.route == "hard" else llm.fast
+        step("routed", {"route": result.route})
     messages = [
         {"role": "system", "content": sql_system_prompt(today)},
         {"role": "user", "content": question},
@@ -89,9 +93,14 @@ def ask(question, llm, db_path, today=None):
         _record(result, "sql", reply)
         result.sql_attempts = attempt
         result.sql = extract_sql(reply.text)
+        step("sql_written", {"sql": result.sql, "attempt": attempt})
         if reply.cut_off:
             # Not sent back: the half-finished reply would only fill the context of the retry.
             result.error = "query failed: the reply was cut off before it finished"
+            step(
+                "query_failed",
+                {"error": "the reply was cut off", "retrying": attempt < MAX_SQL_ATTEMPTS},
+            )
             messages.append(
                 {
                     "role": "user",
@@ -109,6 +118,7 @@ def ask(question, llm, db_path, today=None):
         except QueryError as e:
             _timed(result, "query", started, str(e))
             result.error = f"query failed: {e}"
+            step("query_failed", {"error": str(e), "retrying": attempt < MAX_SQL_ATTEMPTS})
             messages += [
                 {"role": "assistant", "content": reply.text},
                 {"role": "user", "content": f"That query failed: {e}\nWrite a corrected query."},
@@ -118,6 +128,7 @@ def ask(question, llm, db_path, today=None):
 
     result.columns, result.rows, result.truncated = query.columns, query.rows, query.truncated
     result.query_ran = True
+    step("query_done", {"row_count": len(query.rows), "truncated": query.truncated})
     reply = llm.chat(
         [
             {"role": "system", "content": ANSWER_SYSTEM_PROMPT},

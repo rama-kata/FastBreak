@@ -99,3 +99,10 @@ Checked against the 2024-25 regular season: 26,306 player rows, 2,460 team rows,
 - The router agrees with the test set's labels on 38/50. It sent 1 of 15 hard questions the fast way (`bubble-season-games-per-team`, still right) and 11 of 35 simple ones to thinking (9 of those right), so it leans to hard. Routing by the test set's own labels would have scored 42 (run 9's simple answers, run 8's hard ones), so the router's choices cost about 2. 4 of the 10 misses were simple questions answered fast that thinking on gets right (`luka-73`, `best-plus-minus-game`, `biggest-margin`, `celtics-ppg-2023-24`); the rest are the questions thinking also misses.
 - Human review happens after the answer has gone out, not before: an answer that waited for a person could wait hours, and holding answers only makes sense once the web app can show "waiting for review". Hard answers from `fastbreak ask --route` go into `reviews` in traces.db. Traces now keep the query's first 20 rows and the answer, so a review needs nothing else, and a reviewed answer can be printed as a draft test question. Eval answers aren't queued: the test set already scores them.
 
+## Phase 7: the API and web app, with routing (Oct 31 2026)
+
+- The API routes every question by default (`FASTBREAK_MODE=route`; `think` and `fast` force one mode). Before routing it ran everything with thinking on, which made a simple question wait about a minute and capped the site at about 150 questions a day of GPU time.
+- Every web question is saved as a trace in `data/traces.db`, as `source = 'ask'`, the same as `fastbreak ask`, so `fastbreak metrics` covers the site. A trace that can't be saved is logged and the visitor still gets the answer.
+- Hard answers from the site go into the same review queue as `fastbreak ask --route`, after they've been sent. The page says so under the answer, and while a hard question is being worked on it says it's thinking it through, which takes about a minute.
+- The steps per call (timings and tokens) stay in the trace and aren't sent to the browser.
+

@@ -1,8 +1,11 @@
-"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions | ask | eval | metrics>."""
+"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions | ask | eval | metrics | review | serve>."""
 
 import argparse
+import os
 import signal
 import sys
+
+import uvicorn
 
 from fastbreak import evals, metrics, traces
 from fastbreak.agent import evaluate
@@ -100,7 +103,16 @@ def main():
         "--as-question", action="store_true", help="print it as a draft test question"
     )
 
+    serve = commands.add_parser("serve", help="run the API the web app calls")
+    serve.add_argument(
+        "--host", default="127.0.0.1", help="address to listen on (default 127.0.0.1)"
+    )
+    serve.add_argument("--port", type=int, default=8077, help="port (default 8077)")
+
     args = parser.parse_args()
+    if args.command == "serve":
+        serve_command(args)
+        return
     conn = connect(args.db)
     init_db(conn)
     fetcher = Fetcher(CACHE_DIR)
@@ -141,6 +153,14 @@ def main():
         sys.exit(f"the model failed: {e}. Is Ollama running (ollama list)?")
     except evaluate.MissingAnswers as e:
         sys.exit(f"no saved answer for: {e}. Run `uv run fastbreak questions freeze` first.")
+
+
+def serve_command(args):
+    """Model, mode (route, think or fast) and API key come from FASTBREAK_MODEL, FASTBREAK_MODE
+    and FASTBREAK_API_KEY."""
+    os.environ.setdefault("FASTBREAK_DB", args.db)
+    os.environ.setdefault("FASTBREAK_TRACES", args.traces)
+    uvicorn.run("fastbreak.api.app:app_from_env", factory=True, host=args.host, port=args.port)
 
 
 def ask_command(args):
