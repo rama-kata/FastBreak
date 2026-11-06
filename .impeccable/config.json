@@ -1,0 +1,62 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-11-06T21:26:00.269Z",
+        "reason": "decision sketch: newsprint grey is the Box Score card's own world, and its risk line already names the familiarity"
+      },
+      {
+        "rule": "overused-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-11-06T21:26:00.277Z",
+        "reason": "decision sketch of the category standard; Inter is deliberately what that card shows"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-11-06T22:02:09.153Z",
+        "reason": "spent decision-round sketch of an alternate visual world; it predates DESIGN.md and is not shipped"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-11-06T22:02:09.162Z",
+        "reason": "spent decision-round sketch of an alternate visual world; it predates DESIGN.md and is not shipped"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-ticket.html"
+        ],
+        "createdAt": "2026-11-06T22:02:09.171Z",
+        "reason": "spent decision-round sketch of an alternate visual world; it predates DESIGN.md and is not shipped"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/canon.html"
+        ],
+        "createdAt": "2026-11-06T22:02:09.179Z",
+        "reason": "spent decision-round sketch of an alternate visual world; it predates DESIGN.md and is not shipped"
+      }
+    ]
+  }
+}

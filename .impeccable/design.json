@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T22:01:19+00:00",
+  "title": "Design System: FastBreak",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Newsprint",
+        "canonical": "oklch(93.0% 0.007 97)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#262521",
+          "#43423e",
+          "#62615d",
+          "#83827e",
+          "#a6a5a0",
+          "#cac9c4",
+          "#efeeec"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Fresh Stock",
+        "canonical": "oklch(96.4% 0.005 95)",
+        "tonalRamp": [
+          "#0b0b0a",
+          "#262522",
+          "#43423f",
+          "#62615e",
+          "#83827f",
+          "#a6a5a1",
+          "#cac9c5",
+          "#efeeec"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Press Black",
+        "canonical": "oklch(19.6% 0 0)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Second Impression",
+        "canonical": "oklch(33.6% 0.007 95)",
+        "tonalRamp": [
+          "#0c0b09",
+          "#262521",
+          "#43423e",
+          "#62615d",
+          "#83827e",
+          "#a6a5a0",
+          "#cac9c4",
+          "#efeeec"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Faded Agate",
+        "canonical": "oklch(47.0% 0.008 97)",
+        "tonalRamp": [
+          "#0c0b09",
+          "#262521",
+          "#43423d",
+          "#62615c",
+          "#83827d",
+          "#a6a5a0",
+          "#cac9c3",
+          "#efeeeb"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline Grey",
+        "canonical": "oklch(81.3% 0.011 95)",
+        "tonalRamp": [
+          "#0c0b09",
+          "#27251f",
+          "#44423b",
+          "#63615a",
+          "#84827b",
+          "#a7a59d",
+          "#cbc9c1",
+          "#efeeea"
+        ]
+      },
+      "spot": {
+        "role": "primary",
+        "displayName": "Edition Spot Red",
+        "canonical": "oklch(53.8% 0.200 28)",
+        "tonalRamp": [
+          "#200000",
+          "#5a0000",
+          "#860000",
+          "#b51413",
+          "#dc473c",
+          "#fc7667",
+          "#ffa292",
+          "#ffdfd7"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Home headline only, capped at 13ch."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The answer to a question; steps to 32/26px over 120 characters and 26/22px over 220; 30px on phones."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "How it works sheet head; the flag uses the same face at 900."
+      },
+      "deck": {
+        "displayName": "Deck",
+        "purpose": "The question repeated above its answer, ink-soft, 60ch."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Explanatory copy, 62ch."
+      },
+      "agate": {
+        "displayName": "Agate",
+        "purpose": "Box score cells, play-by-play, line scores, datelines."
+      },
+      "label": {
+        "displayName": "Standing Head",
+        "purpose": "Uppercase heads over a block of rows, on a 2px ink rule."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "SQL and query errors only."
+      }
+    },
+    "shadows": [],
+    "rules": [
+      {
+        "name": "double-rule",
+        "value": "border-bottom: 4px double var(--color-ink)",
+        "purpose": "Under the flag (rail and phone header) and the How it works sheet head."
+      },
+      {
+        "name": "standing-head-rule",
+        "value": "border-bottom: 2px solid var(--color-ink)",
+        "purpose": "Under standing heads over the box score, query and Try one."
+      },
+      {
+        "name": "ink-rule",
+        "value": "1px solid var(--color-ink)",
+        "purpose": "Region dividers: rail edge, strip, question box, dateline, end of a story, table head."
+      },
+      {
+        "name": "hairline",
+        "value": "1px solid var(--color-rule)",
+        "purpose": "Between rows, list items, plays and game cells."
+      }
+    ],
+    "focus": {
+      "value": "outline: 2px solid var(--color-spot); outline-offset: 2px",
+      "purpose": "Global focus-visible ring. The question field uses a 2px ink outline at 0 offset; grounded-number marks use the pen ring instead."
+    },
+    "motion": [
+      {
+        "name": "pen-draw",
+        "value": "stroke-dashoffset 1 to 0, 360ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The editor's pen ring drawing on; shown drawn with reduced motion."
+      },
+      {
+        "name": "live-pulse",
+        "value": "animate-pulse (opacity, 2s)",
+        "purpose": "The red Live dot while a question runs; static with reduced motion."
+      },
+      {
+        "name": "arrow-nudge",
+        "value": "translateX(4px), 200ms ease-out",
+        "purpose": "Arrow on Try one suggestions on hover."
+      },
+      {
+        "name": "scroll-to-story",
+        "value": "scrollIntoView smooth, block start",
+        "purpose": "A new question scrolls to its own top so the headline lands in view."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Rail replaces phone header"
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Home two-column; How it works sheet pushes the column (pr 460px)"
+      },
+      {
+        "name": "@3xl container",
+        "value": "48rem",
+        "purpose": "Proof grid goes side by side, measured on the answer article"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Black slab for New question, Try again and Ask again.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\" aria-hidden=\"true\"><path d=\"M7 1v12M1 7h12\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>New question</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 0; background: var(--color-ink, #151515); color: var(--color-paper, #e9e8e3); font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; } .ds-btn-primary:hover { background: var(--color-ink-soft, #383733); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-spot, #c8231e); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ink outline, used for Stop while a question runs.",
+      "html": "<button class=\"ds-btn-secondary\">Stop</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--color-ink, #151515); border-radius: 0; background: transparent; color: var(--color-ink, #151515); font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; } .ds-btn-secondary:hover { background: var(--color-sheet, #f4f3ef); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-spot, #c8231e); outline-offset: 2px; }"
+    },
+    {
+      "name": "Question Box",
+      "kind": "input",
+      "refersTo": "input-question",
+      "description": "The pinned question field with its black Ask slab.",
+      "html": "<form class=\"ds-ask\"><textarea class=\"ds-ask-field\" rows=\"1\" placeholder=\"Ask about any game…\"></textarea><button type=\"button\" class=\"ds-ask-btn\">Ask<svg width=\"14\" height=\"14\" viewBox=\"0 0 16 16\" fill=\"none\" aria-hidden=\"true\"><path d=\"M2 8h11M9 4l4 4-4 4\" stroke=\"currentColor\" stroke-width=\"2\"/></svg></button></form>",
+      "css": ".ds-ask { display: flex; align-items: stretch; gap: 10px; } .ds-ask-field { flex: 1; min-height: 52px; resize: none; padding: 14px 16px; border: 1px solid var(--color-rule, #c4c2ba); border-radius: 0; background: var(--color-sheet, #f4f3ef); color: var(--color-ink, #151515); caret-color: var(--color-spot, #c8231e); font-family: var(--font-franklin), 'Libre Franklin', system-ui, sans-serif; font-size: 17px; } .ds-ask-field::placeholder { color: var(--color-muted, #5c5b56); } .ds-ask-field:focus { outline: 2px solid var(--color-ink, #151515); outline-offset: 0; } .ds-ask-btn { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border: 0; border-radius: 0; background: var(--color-ink, #151515); color: var(--color-paper, #e9e8e3); font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 17px; font-weight: 700; cursor: pointer; } .ds-ask-btn:hover { background: var(--color-ink-soft, #383733); } .ds-ask-btn:focus-visible { outline: 2px solid var(--color-spot, #c8231e); outline-offset: 2px; }"
+    },
+    {
+      "name": "Your Questions",
+      "kind": "nav",
+      "refersTo": "",
+      "description": "Rail list under a standing head; hover underlines, current is bold.",
+      "html": "<nav class=\"ds-history\"><div class=\"ds-history-head\"><h2>Your questions</h2><button>Clear</button></div><ul><li><button aria-current=\"true\">What was the Warriors' regular season record in 2015-16?</button></li><li><button>Who made the most three-pointers from 2015-16 to 2025-26?</button></li></ul></nav>",
+      "css": ".ds-history { width: 240px; } .ds-history-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-ink, #151515); } .ds-history-head h2 { margin: 0; padding: 4px 0; font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-ink, #151515); } .ds-history-head button { background: none; border: 0; font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 13px; color: var(--color-muted, #5c5b56); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; } .ds-history-head button:hover { color: var(--color-ink, #151515); text-decoration-thickness: 2px; } .ds-history ul { list-style: none; margin: 0; padding: 0; } .ds-history li { border-bottom: 1px solid var(--color-rule, #c4c2ba); } .ds-history li button { width: 100%; padding: 10px 0; background: none; border: 0; text-align: left; font-family: var(--font-franklin), 'Libre Franklin', system-ui, sans-serif; font-size: 14px; line-height: 1.375; color: var(--color-ink, #151515); cursor: pointer; text-underline-offset: 3px; } .ds-history li button:hover { text-decoration: underline; } .ds-history li button[aria-current] { font-weight: 700; } .ds-history button:focus-visible { outline: 2px solid var(--color-spot, #c8231e); outline-offset: 2px; }"
+    },
+    {
+      "name": "Game Cell",
+      "kind": "card",
+      "refersTo": "tag-final",
+      "description": "Whole-cell line score in the games strip with a red FINAL tag.",
+      "html": "<article class=\"ds-game\"><span class=\"ds-final\">Final</span><div class=\"ds-team\"><span>Orlando Magic</span><span>104</span></div><div class=\"ds-team ds-won\"><span>Phoenix Suns</span><span>117</span></div><p class=\"ds-top\">Devin Booker, 30</p><div class=\"ds-game-links\"><a href=\"#\">Ask about it</a><a href=\"#\">Highlights</a></div></article>",
+      "css": ".ds-game { display: flex; flex-direction: column; gap: 4px; width: 216px; padding: 10px 16px 8px; border-right: 1px solid var(--color-rule, #c4c2ba); background: var(--color-paper, #e9e8e3); font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 14px; line-height: 1.375; font-variant-numeric: tabular-nums; } .ds-final { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-spot, #c8231e); } .ds-team { display: flex; justify-content: space-between; gap: 12px; color: var(--color-ink-soft, #383733); } .ds-won { font-weight: 700; color: var(--color-ink, #151515); } .ds-top { margin: 0; font-size: 13px; color: var(--color-muted, #5c5b56); } .ds-game-links { display: flex; gap: 12px; font-size: 13px; font-weight: 700; } .ds-game-links a { color: var(--color-ink, #151515); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } .ds-game-links a:hover { text-decoration-thickness: 2px; } .ds-game-links a:focus-visible { outline: 2px solid var(--color-spot, #c8231e); outline-offset: 2px; }"
+    },
+    {
+      "name": "Box Score",
+      "kind": "custom",
+      "refersTo": "box-score-cell",
+      "description": "Result rows under a standing head; grounded cells bold.",
+      "html": "<section class=\"ds-box\"><div class=\"ds-box-head\"><h3>Box score: what the query returned</h3><button>CSV</button></div><table><thead><tr><th>Wins</th><th>Losses</th></tr></thead><tbody><tr><td><b>73</b></td><td><b>9</b></td></tr></tbody></table></section>",
+      "css": ".ds-box { display: flex; flex-direction: column; gap: 6px; } .ds-box-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--color-ink, #151515); } .ds-box-head h3 { margin: 0; font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-ink, #151515); } .ds-box-head button { min-height: 36px; padding: 0 4px; background: none; border: 0; font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 13px; font-weight: 700; color: var(--color-ink, #151515); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; } .ds-box-head button:hover { text-decoration-thickness: 2px; } .ds-box table { border-collapse: collapse; min-width: 16rem; font-family: var(--font-agate), 'Archivo Narrow', 'Arial Narrow', sans-serif; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--color-ink, #151515); } .ds-box thead tr { border-bottom: 1px solid var(--color-rule, #c4c2ba); } .ds-box th { padding: 6px 12px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; text-align: right; } .ds-box td { padding: 6px 12px; text-align: right; } .ds-box tbody tr { border-bottom: 1px solid var(--color-rule, #c4c2ba); }"
+    },
+    {
+      "name": "Editor's Pen",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Signature: a grounded number underlined in red; pointing at it draws the red ring.",
+      "html": "<h2 class=\"ds-headline\">The Warriors went <mark class=\"ds-num\" tabindex=\"0\">73<svg class=\"ds-ring\" viewBox=\"0 0 100 40\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path pathLength=\"1\" d=\"M80 5 C 60 -1, 16 1, 5 15 C -4 28, 22 40, 54 38 C 84 36, 100 27, 95 14 C 91 5, 72 2, 58 4\" fill=\"none\" stroke=\"#c8231e\" stroke-width=\"2\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\"/></svg></mark> and 9.</h2>",
+      "css": ".ds-headline { margin: 0; font-family: var(--font-franklin), 'Libre Franklin', system-ui, sans-serif; font-size: 44px; font-weight: 800; line-height: 1.06; letter-spacing: -0.025em; color: var(--color-ink, #151515); font-variant-numeric: tabular-nums; } .ds-num { position: relative; display: inline-block; margin: 0 0.15em; background: transparent; color: inherit; cursor: help; text-decoration: underline; text-decoration-color: var(--color-spot, #c8231e); text-decoration-thickness: 2px; text-underline-offset: 0.14em; outline: none; } .ds-ring { position: absolute; top: -0.02em; left: -0.26em; width: calc(100% + 0.52em); height: calc(100% + 0.04em); transform: rotate(-2deg); overflow: visible; pointer-events: none; display: none; } .ds-num:hover, .ds-num:focus-visible { text-decoration: none; } .ds-num:hover .ds-ring, .ds-num:focus-visible .ds-ring { display: block; } .ds-ring path { stroke-dasharray: 1; stroke-dashoffset: 1; } .ds-num:hover .ds-ring path, .ds-num:focus-visible .ds-ring path { animation: ds-pen 360ms cubic-bezier(0.16, 1, 0.3, 1) forwards; } @keyframes ds-pen { to { stroke-dashoffset: 0; } } @media (prefers-reduced-motion: reduce) { .ds-ring path { stroke-dashoffset: 0; } .ds-num:hover .ds-ring path, .ds-num:focus-visible .ds-ring path { animation: none; } }"
+    },
+    {
+      "name": "SQL Block",
+      "kind": "custom",
+      "refersTo": "sql-block",
+      "description": "How we got it: wrapped mono SQL on sheet, keywords bold, strings italic.",
+      "html": "<pre class=\"ds-sql\"><span class=\"ds-sql-line\" style=\"padding-left:2ch\"><b>SELECT</b> wins, losses <b>FROM</b> team_seasons</span><span class=\"ds-sql-line\" style=\"padding-left:2ch\"><b>WHERE</b> team = <i>'GSW'</i> <b>AND</b> season = <i>'2015-16'</i></span></pre>",
+      "css": ".ds-sql { margin: 0; padding: 16px; border: 1px solid var(--color-rule, #c4c2ba); border-radius: 0; background: var(--color-sheet, #f4f3ef); color: var(--color-ink-soft, #383733); font-family: var(--font-jetbrains), 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: break-word; } .ds-sql-line { display: block; text-indent: -2ch; } .ds-sql b { color: var(--color-ink, #151515); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Box Score",
+    "overview": "FastBreak prints like the sports page of a daily paper. Every answer is set as a game story: the question is the deck, the answer is the headline, the result rows are the agate box score under it, and the SQL is the \"how we got it\" line beside the box. The page is newsprint grey with black ink; one edition spot red marks the few things an editor would mark. Proof sits under the headline, never behind a toggle.\n\nDensity is a newspaper's: tight agate tables, condensed labels, rules instead of boxes. The shell never moves. A left rail carries the flag, the edition line and Your questions; last night's line scores run across the top as a strip; the question box sits at the foot. Depth comes from rules and ink weight, not from shadows or cards. Motion is small and editorial: the pen ring drawing on, a pulsing Live dot, an arrow nudging on hover.\n\nThe world rejects the chat-bubble thread with collapsed sources: no bubbles, no avatars beside messages, no rounded cards, no drop shadows.",
+    "keyCharacteristics": [
+      "Newsprint ground, black ink, one spot red with a fixed list of jobs.",
+      "Heavy Franklin Gothic headlines; condensed agate for every table, label and line score; mono only for SQL.",
+      "Graded rules: a 4px double ink rule under the flag, 2px ink rules where a section starts (under standing heads and under the answer headline), hairline grey rules for every other edge and divider.",
+      "Square corners everywhere; the only round things are status dots.",
+      "Tabular figures on the whole document.",
+      "Signature: the editor's red pen rings a number in the headline and the cell it came from."
+    ],
+    "rules": [
+      {
+        "name": "The Spot Red Rule",
+        "body": "Red does one of the jobs listed above and nothing else. Hovers never turn red: links thicken their underline, black buttons lighten to ink-soft, outline buttons fill with sheet.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Ink Rule",
+        "body": "Everything that is not red is ink, ink-soft, muted or rule on paper or sheet. There is no second accent and no tint of red used as a fill.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "`font-variant-numeric: tabular-nums` is set on the root, so every figure in every face lines up in columns. Numeric table columns are right-aligned.",
+        "section": "typography"
+      },
+      {
+        "name": "The Standing Head Rule",
+        "body": "An uppercase agate label always heads a block of rows and sits on a 2px ink rule (1px in the rail). It never floats above a headline as a tag line.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rules Not Boxes Rule",
+        "body": "Divide with a horizontal or vertical rule before reaching for a border. Full borders are reserved for things you type into or read code in (the question field, the SQL block) and for the outline button.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** set every answer as deck, headline, dateline, then box score and query, with the proof always visible.",
+      "**Do** keep spot red to its listed jobs: flag, FINAL, \"See the proof.\", grounded-number underlines, Live dot, pen ring, struck numbers, offline dot, caret, focus ring.",
+      "**Do** grade the rules: the 4px double rule under the flag, 2px ink rules only where a section starts, hairline grey for every other edge.",
+      "**Do** set tables, labels, line scores and logs in Archivo Narrow, and right-align numeric columns.",
+      "**Do** let the proof grid switch on the article's container width, so the layout holds when the How it works sheet is open.",
+      "**Do** show the pen ring already drawn when reduced motion is on."
+    ],
+    "donts": [
+      "**Don't** turn anything red on hover; hovers thicken underlines or shift ink and sheet fills.",
+      "**Don't** add shadows, rounded corners or card boxes; corners are 0px and only status dots are round.",
+      "**Don't** use chat bubbles, avatars beside messages or collapsed sources.",
+      "**Don't** use JetBrains Mono for anything but SQL and query errors.",
+      "**Don't** put an uppercase agate tag above a headline; standing heads only head a block of rows.",
+      "**Don't** scroll SQL sideways; wrap it and indent the continuation."
+    ]
+  }
+}

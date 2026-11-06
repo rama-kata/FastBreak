@@ -6,6 +6,7 @@ import { seedRun } from "@/lib/ask-store";
 import { history as historyStore, type HistoryItem } from "@/lib/history";
 import type { AskResult } from "@/lib/types";
 import { Exchange } from "./Answer";
+import { AccuracyLine, HowItWorksPanel } from "./HowItWorks";
 
 const MAX_CHARS = 300; // the API's limit
 
@@ -15,52 +16,54 @@ const SUGGESTIONS = [
   "How many points did Klay Thompson score on December 5, 2016?",
 ];
 
-function Wordmark({ size }: { size: "lg" | "sm" }) {
+function Flag({ size }: { size: "lg" | "sm" }) {
   return (
-    <span
-      className={`font-display font-black tracking-tight italic ${size === "lg" ? "text-[34px]" : "text-[22px]"}`}
-    >
-      <span className="text-cream">Fast</span>
-      <span className="text-sun">Break</span>
+    <span className={`font-black tracking-[-0.035em] ${size === "lg" ? "text-[36px] leading-none" : "text-[24px] leading-none"}`}>
+      Fast<span className="text-spot">Break</span>
     </span>
   );
 }
 
 function HistoryList({
   items,
+  active,
   onPick,
   onClear,
 }: {
   items: HistoryItem[];
+  active: string | undefined;
   onPick: (item: HistoryItem) => void;
   onClear: () => void;
 }) {
   return (
-    <nav aria-labelledby="history-heading" className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="flex items-center justify-between px-1">
-        <h2 id="history-heading" className="m-0 text-xs font-bold tracking-[0.08em] text-[#9aa6b8] uppercase">
-          History
+    <nav aria-labelledby="history-heading" className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center justify-between border-b border-ink">
+        <h2 id="history-heading" className="m-0 py-1 font-agate text-[13px] font-bold tracking-[0.1em] uppercase">
+          Your questions
         </h2>
         {items.length > 0 && (
           <button
             type="button"
             onClick={onClear}
-            className="cursor-pointer rounded px-1.5 py-1 text-xs text-[#9aa6b8] hover:text-cream"
+            className="min-h-8 cursor-pointer px-1 font-agate text-[13px] text-muted underline underline-offset-3 hover:text-ink hover:decoration-2"
           >
             Clear
           </button>
         )}
       </div>
       {items.length === 0 ? (
-        <p className="m-0 px-1 text-sm text-[#9aa6b8]">Questions you ask show up here, kept in this browser.</p>
+        <p className="m-0 pt-2.5 text-[14px] leading-snug text-muted">
+          Questions you ask show up here, kept in this browser only.
+        </p>
       ) : (
-        <ul className="m-0 flex list-none flex-col gap-0.5 overflow-y-auto p-0">
+        <ul className="m-0 flex list-none flex-col overflow-y-auto p-0">
           {items.map((item) => (
-            <li key={item.question}>
+            <li key={item.question} className="border-b border-rule">
               <button
                 type="button"
                 onClick={() => onPick(item)}
-                className="w-full cursor-pointer truncate rounded-lg px-3 py-2.5 text-left text-sm text-[#d5dbe5] hover:bg-white/10 hover:text-white"
+                aria-current={item.question === active ? "true" : undefined}
+                className={`line-clamp-2 w-full cursor-pointer py-2.5 text-left text-[14px] leading-snug text-ink underline-offset-3 hover:underline ${item.question === active ? "font-bold" : ""}`}
                 title={item.question}
               >
                 {item.question}
@@ -82,8 +85,9 @@ export function ChatApp({ games, freshness }: { games: React.ReactNode; freshnes
   );
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
   const nextId = useRef(1);
-  const bottom = useRef<HTMLDivElement>(null);
+  const threadEnd = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -105,8 +109,9 @@ export function ChatApp({ games, freshness }: { games: React.ReactNode; freshnes
     router.replace(pathname, { scroll: false });
   }, [linked, ask, router, pathname]);
 
+  // A new question scrolls to its own top, so the headline answer lands in view, not the SQL.
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    threadEnd.current?.previousElementSibling?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [thread.length]);
 
   const onAnswered = useCallback((result: AskResult) => {
@@ -125,99 +130,110 @@ export function ChatApp({ games, freshness }: { games: React.ReactNode; freshnes
     input.current?.focus();
   };
 
-  const sidebar = (
-    <>
-      <button type="button" onClick={newChat} className="flex flex-col items-center gap-1 rounded-xl p-1 hover:bg-white/5" aria-label="FastBreak, start a new chat">
-        {/* eslint-disable-next-line @next/next/no-img-element -- static brand art */}
-        <img src="/mascot.png" alt="" width={172} height={128} className="h-auto w-[172px]" />
-        <Wordmark size="lg" />
-      </button>
-      <button
-        type="button"
-        onClick={newChat}
-        className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl bg-white/10 px-4 font-semibold text-cream hover:bg-white/15"
-      >
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-        New chat
-      </button>
-      <HistoryList items={history} onPick={openFromHistory} onClear={historyStore.clear} />
-      <div className="flex flex-col gap-2 border-t border-white/10 pt-4 text-sm text-[#c2cad6]">
-        <p className="m-0 font-display text-base font-bold text-cream">Ask anything. See the proof.</p>
-        {freshness}
+  const masthead = (
+      <div className="flex flex-col gap-1.5 border-b-4 border-double border-ink pb-2.5">
+        <button
+          type="button"
+          onClick={newChat}
+          className="flex cursor-pointer items-end justify-between gap-2 text-left text-ink"
+          aria-label="FastBreak, start a new question"
+        >
+          <Flag size="lg" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand art */}
+          <img src="/mascot-cut.png" alt="" width={86} height={64} className="-mb-1 h-[52px] w-auto" />
+        </button>
+        <div className="font-agate text-[13px] text-ink-soft">{freshness}</div>
       </div>
+  );
+
+  const railBody = (
+    <>
+      <button type="button" onClick={newChat} className="flex min-h-11 cursor-pointer items-center gap-2.5 bg-ink px-4 font-agate text-[16px] font-bold text-paper hover:bg-ink-soft">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="2" />
+        </svg>
+        New question
+      </button>
+      <HistoryList items={history} active={thread.at(-1)?.question} onPick={openFromHistory} onClear={historyStore.clear} />
+      <p className="m-0 border-t border-rule pt-3 text-[17px] leading-tight font-extrabold tracking-[-0.01em]">
+        Ask anything. See the proof.
+      </p>
     </>
   );
 
   return (
     <div className="flex h-dvh flex-col bg-paper md:flex-row">
-      {/* Phone: a top bar, with History in a drawer */}
-      <header className="flex items-center justify-between gap-3 bg-night px-4 py-2.5 md:hidden">
-        <button type="button" onClick={newChat} className="flex items-center gap-2" aria-label="FastBreak, start a new chat">
+      {/* Phone: the flag across the top, with Your questions in a drawer */}
+      <header className="flex items-center justify-between gap-3 border-b-4 border-double border-ink px-4 py-2 md:hidden">
+        <button type="button" onClick={newChat} className="flex items-center gap-2 text-ink" aria-label="FastBreak, start a new question">
           {/* eslint-disable-next-line @next/next/no-img-element -- static brand art */}
-          <img src="/avatar.png" alt="" width={36} height={36} className="size-9 rounded-full" />
-          <Wordmark size="sm" />
+          <img src="/mascot-cut.png" alt="" width={54} height={40} className="h-10 w-auto" />
+          <Flag size="sm" />
         </button>
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
           aria-expanded={menuOpen}
           aria-controls="phone-menu"
-          className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-sm font-semibold text-cream hover:bg-white/10"
+          className="flex min-h-11 cursor-pointer items-center px-2 font-agate text-[15px] font-bold underline underline-offset-3"
         >
-          {menuOpen ? "Close" : "History"}
+          {menuOpen ? "Close" : "Your questions"}
         </button>
       </header>
       {menuOpen && (
-        <div id="phone-menu" className="flex max-h-[70dvh] flex-col gap-5 overflow-y-auto bg-night px-4 pt-2 pb-5 md:hidden">
-          {sidebar}
+        <div id="phone-menu" className="flex max-h-[70dvh] flex-col gap-5 overflow-y-auto border-b border-rule px-4 pt-3 pb-5 md:hidden">
+          <div className="font-agate text-[13px] text-ink-soft">{freshness}</div>
+          {railBody}
         </div>
       )}
 
-      <aside className="hidden w-[280px] shrink-0 flex-col gap-5 overflow-y-auto bg-night px-4 py-6 md:flex">
-        {sidebar}
+      <aside className="hidden w-[280px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-rule px-5 pt-6 pb-5 md:flex">
+        {masthead}
+        {railBody}
       </aside>
 
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <main className={`flex min-h-0 min-w-0 flex-1 flex-col ${howOpen ? "lg:pr-[460px]" : ""}`}>
+        {games}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {thread.length === 0 ? (
-            <div className="mx-auto flex max-w-[1040px] flex-col gap-14 px-4 pt-12 pb-10 sm:px-8 sm:pt-20">
-              <section className="flex flex-col items-center gap-5 text-center">
-                <h1 className="m-0 max-w-[18ch] font-display text-[clamp(38px,5.2vw,68px)] leading-none font-black tracking-[-0.03em]">
-                  Ask anything about the NBA. <span className="text-court">See the proof.</span>
+            <div className="mx-auto grid max-w-[1120px] gap-x-12 gap-y-10 px-5 pt-10 pb-12 sm:px-10 sm:pt-14 lg:grid-cols-[minmax(0,1fr)_300px]">
+              <section className="flex flex-col gap-6">
+                <h1 className="m-0 max-w-[13ch] text-[clamp(44px,6.4vw,92px)] leading-[0.94] font-black tracking-[-0.04em] text-balance">
+                  Ask anything about the NBA. <span className="text-spot">See the proof.</span>
                 </h1>
-                <p className="m-0 max-w-[46ch] text-lg text-muted">
-                  Plain-English questions about every game since 2015-16. Each answer shows the query it
-                  ran and the rows it came from.
+                <p className="m-0 max-w-[44ch] border-t border-ink pt-3 text-[20px] leading-snug text-ink-soft">
+                  Plain-English questions about every game since 2015-16. Each answer shows the query it ran and
+                  the rows it came from.
                 </p>
-                <ul className="m-0 flex max-w-[760px] list-none flex-wrap justify-center gap-2 p-0">
+              </section>
+              <section aria-labelledby="try-one" className="flex flex-col self-end">
+                <h2 id="try-one" className="m-0 border-b-2 border-ink pb-1 font-agate text-[13px] font-bold tracking-[0.1em] uppercase">
+                  Try one
+                </h2>
+                <ul className="m-0 flex list-none flex-col p-0">
                   {SUGGESTIONS.map((s) => (
-                    <li key={s}>
+                    <li key={s} className="border-b border-rule">
                       <button
                         type="button"
                         onClick={() => ask(s)}
-                        className="min-h-11 cursor-pointer rounded-full border border-line-strong bg-white px-4 py-2 text-sm text-ink hover:bg-chalk"
+                        className="group grid min-h-12 w-full cursor-pointer grid-cols-[1fr_auto] items-center gap-3 py-3 text-left text-[16px] leading-snug text-ink underline-offset-3 hover:underline"
                       >
                         {s}
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="transition-transform duration-200 ease-out group-hover:translate-x-1">
+                          <path d="M2 8h11M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" />
+                        </svg>
                       </button>
                     </li>
                   ))}
                 </ul>
               </section>
-              <section aria-labelledby="last-night" className="flex flex-col gap-4">
-                <h2 id="last-night" className="m-0 font-display text-2xl font-extrabold">
-                  Last night&apos;s games
-                </h2>
-                {games}
-              </section>
             </div>
           ) : (
-            <div className="mx-auto flex max-w-[860px] flex-col gap-8 px-4 py-8 sm:px-8">
+            <div className="mx-auto flex max-w-[1120px] scroll-pt-4 flex-col gap-10 px-5 py-8 sm:px-10 [&>article]:scroll-mt-6">
               {thread.map((t) => (
                 <Exchange key={t.id} question={t.question} onAnswered={onAnswered} />
               ))}
-              <div ref={bottom} />
+              <div ref={threadEnd} />
             </div>
           )}
         </div>
@@ -227,9 +243,9 @@ export function ChatApp({ games, freshness }: { games: React.ReactNode; freshnes
             e.preventDefault();
             ask(draft);
           }}
-          className="border-t border-line bg-paper px-4 py-3 sm:px-8 sm:py-4"
+          className="border-t border-rule px-5 pt-3 pb-3 sm:px-10"
         >
-          <div className="mx-auto flex max-w-[860px] items-end gap-2.5">
+          <div className="mx-auto flex max-w-[1120px] items-end gap-2.5">
             <label htmlFor="question" className="sr-only">
               Your question
             </label>
@@ -246,25 +262,29 @@ export function ChatApp({ games, freshness }: { games: React.ReactNode; freshnes
                   ask(draft);
                 }
               }}
-              placeholder="Ask me anything about the NBA since 2015-16…"
-              className="max-h-40 min-h-[52px] min-w-0 flex-1 resize-none rounded-2xl border-[1.5px] border-line-strong bg-white px-5 py-3.5 text-base text-ink [field-sizing:content] placeholder:text-muted focus:border-navy focus:outline-none"
+              placeholder="Ask about any game…"
+              className="max-h-40 min-h-[52px] min-w-0 flex-1 resize-none border border-rule bg-sheet px-4 py-3.5 text-[17px] text-ink [field-sizing:content] placeholder:text-muted focus:outline-2 focus:outline-offset-0 focus:outline-ink"
             />
             <button
               type="submit"
-              aria-label="Ask"
-              disabled={!draft.trim()}
-              className="flex size-[52px] shrink-0 cursor-pointer items-center justify-center rounded-full bg-sun text-ink hover:brightness-95 disabled:cursor-default disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+              aria-disabled={!draft.trim()}
+              className="flex min-h-[52px] shrink-0 cursor-pointer items-center gap-2 self-stretch bg-ink px-6 font-agate text-[17px] font-bold text-paper hover:bg-ink-soft aria-disabled:cursor-default aria-disabled:hover:bg-ink"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              Ask
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M2 8h11M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" />
               </svg>
             </button>
           </div>
-          <p className="mx-auto mt-2 mb-0 max-w-[860px] text-center text-xs text-muted">
-            Each question is answered on its own, so name the player, team and season every time.
-          </p>
+          <div className="mx-auto mt-2 flex max-w-[1120px] flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+            <p className="m-0 hidden font-agate text-[13px] text-muted sm:block">
+              Each question is answered on its own, so name the player, team and season every time.
+            </p>
+            <AccuracyLine />
+          </div>
         </form>
       </main>
+      <HowItWorksPanel onOpenChange={setHowOpen} />
     </div>
   );
 }

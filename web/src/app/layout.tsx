@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Archivo, Inter, JetBrains_Mono } from "next/font/google";
+import { Archivo_Narrow, JetBrains_Mono, Libre_Franklin } from "next/font/google";
 import "./globals.css";
 
-const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"] });
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+// A sports page: Franklin Gothic-style headlines and text, condensed agate for tables.
+const franklin = Libre_Franklin({ variable: "--font-franklin", subsets: ["latin"] });
+const agate = Archivo_Narrow({ variable: "--font-agate", subsets: ["latin"] });
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${inter.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${franklin.variable} ${agate.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans text-base leading-normal">{children}</body>
     </html>

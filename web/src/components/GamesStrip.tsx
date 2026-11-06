@@ -3,40 +3,44 @@ import { getLatestGames } from "@/lib/api";
 import { dayAndDate, longMonth } from "@/lib/format";
 import type { Game } from "@/lib/types";
 
+// Last night's line scores, set like the agate strip across the top of a sports page.
+// The row scrolls sideways and snaps to whole games, so a game is never cut in half.
+
+const strip = "flex snap-x snap-mandatory overflow-x-auto border-b border-rule";
+
 function TeamLine({ name, pts, won }: { name: string; pts: number; won: boolean }) {
   return (
-    <div className={`flex items-center justify-between text-lg ${won ? "font-bold text-ink" : "text-muted"}`}>
-      <span>{name}</span>
-      <span className="font-mono">{pts}</span>
+    <div className={`flex items-baseline justify-between gap-3 ${won ? "font-bold text-ink" : "text-ink-soft"}`}>
+      <span className="truncate">{name}</span>
+      <span>{pts}</span>
     </div>
   );
 }
 
-function GameCard({ game, date }: { game: Game; date: string }) {
+function GameCell({ game, date, day }: { game: Game; date: string; day: string }) {
   const { away, home, top_scorer } = game;
   const awayWon = away.pts > home.pts;
   const matchup = `${away.name} vs ${home.name}`;
   const question = `Who were the top scorers for each team in the ${matchup} game on ${longMonth(date)}?`;
   const youtube = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${matchup} highlights ${longMonth(date)}`)}`;
   return (
-    <article className="flex flex-col gap-2.5 rounded-xl border border-line bg-white px-[18px] py-4">
-      <span className="text-xs font-bold uppercase tracking-[0.06em] text-muted">
+    <article className="flex w-1/2 shrink-0 snap-start sm:w-[216px] flex-col gap-1 border-r border-rule px-4 pt-2.5 pb-2 font-agate text-[14px] leading-snug">
+      <span className="text-[11px] font-bold tracking-[0.1em] text-spot uppercase">
         {game.overtimes ? `Final · ${game.overtimes > 1 ? `${game.overtimes}OT` : "OT"}` : "Final"}
+        <span className="sm:hidden"> · {day}</span>
       </span>
-      <div className="flex flex-col gap-1">
-        <TeamLine name={away.name} pts={away.pts} won={awayWon} />
-        <TeamLine name={home.name} pts={home.pts} won={!awayWon} />
-      </div>
+      <TeamLine name={away.name} pts={away.pts} won={awayWon} />
+      <TeamLine name={home.name} pts={home.pts} won={!awayWon} />
       {top_scorer && (
-        <p className="m-0 border-t border-line pt-2.5 text-sm text-[#334155]">
-          Top scorer: <strong>{top_scorer.name}</strong>, {top_scorer.pts} pts
+        <p className="m-0 truncate text-[13px] text-muted">
+          {top_scorer.name}, {top_scorer.pts}
         </p>
       )}
-      <div className="flex gap-2">
+      <div className="mt-0.5 flex gap-3 text-[13px] font-bold">
         <Link
           href={{ pathname: "/", query: { q: question } }}
           scroll={false}
-          className="flex min-h-11 flex-1 items-center justify-center rounded-lg bg-mist text-sm font-semibold text-ink no-underline hover:text-ink hover:brightness-95"
+          className="inline-flex min-h-8 items-center underline"
         >
           Ask about it
         </Link>
@@ -45,40 +49,63 @@ function GameCard({ game, date }: { game: Game; date: string }) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Watch ${away.name} at ${home.name} highlights on YouTube (opens a new tab)`}
-          className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-line-strong text-sm font-semibold text-ink no-underline hover:bg-chalk hover:text-ink"
+          className="inline-flex min-h-8 items-center gap-1 underline"
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M5 3.5v9l7-4.5-7-4.5z" fill="currentColor" />
-          </svg>
           Highlights
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+            <path d="M3 1h6v6M9 1L1 9" stroke="currentColor" strokeWidth="1.5" fill="none" />
+          </svg>
         </a>
       </div>
     </article>
   );
 }
 
+function DateCell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="hidden w-[112px] shrink-0 snap-start flex-col sm:flex justify-center border-r border-rule px-4 font-agate text-[13px] leading-tight">
+      {children}
+    </div>
+  );
+}
+
 export async function GamesStrip() {
   const latest = await getLatestGames();
   if (!latest?.date || latest.games.length === 0) {
-    return <p className="m-0 text-muted">Scores aren&apos;t available right now.</p>;
-  }
-  return (
-    <>
-      <p className="m-0 text-sm text-muted">{dayAndDate(latest.date)} · final scores from FastBreak&apos;s data</p>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3.5">
-        {latest.games.map((g) => (
-          <GameCard key={g.game_id} game={g} date={latest.date!} />
-        ))}
+    return (
+      <div className={strip}>
+        <p className="m-0 px-4 py-3 font-agate text-[14px] text-muted">Last night&apos;s scores aren&apos;t available right now.</p>
       </div>
-    </>
+    );
+  }
+  const [day, date] = dayAndDate(latest.date).split(", ");
+  return (
+    <section aria-label={`Final scores, ${dayAndDate(latest.date)}`} className={strip}>
+      <DateCell>
+        <span className="font-bold">{day}</span>
+        <span>{date}</span>
+        <span className="mt-1 text-muted">{latest.games.length} final{latest.games.length === 1 ? "" : "s"}</span>
+      </DateCell>
+      {latest.games.map((g) => (
+        <GameCell key={g.game_id} game={g} date={latest.date!} day={date} />
+      ))}
+    </section>
   );
 }
 
 export function GamesStripSkeleton() {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3.5" aria-hidden="true">
-      {Array.from({ length: 8 }, (_, i) => (
-        <div key={i} className="h-[214px] rounded-xl border border-line bg-white/60" />
+    <div className={strip} aria-hidden="true">
+      <DateCell>
+        <span className="h-3 w-12 bg-rule" />
+      </DateCell>
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="flex w-1/2 shrink-0 sm:w-[216px] flex-col gap-2 border-r border-rule px-4 py-3">
+          <span className="h-2.5 w-10 bg-rule" />
+          <span className="h-3 w-full bg-rule/60" />
+          <span className="h-3 w-full bg-rule/60" />
+          <span className="h-3 w-24 bg-rule/40" />
+        </div>
       ))}
     </div>
   );

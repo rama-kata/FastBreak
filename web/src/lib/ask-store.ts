@@ -11,6 +11,7 @@ export type RunState = {
   retries: number;
   result: AskResult | null;
   error: string | null;
+  plays: { at: number; text: string }[]; // the play-by-play: what happened, and when
 };
 
 type Run = { state: RunState; listeners: Set<() => void>; controller: AbortController };
@@ -26,12 +27,21 @@ function finish(run: Run, patch: Partial<RunState>) {
   update(run, { ...patch, finishedAt: Date.now() });
 }
 
+function play(run: Run, text: string) {
+  return [...run.state.plays, { at: Date.now(), text }];
+}
+
 function handle(run: Run, event: string, data: Record<string, unknown>) {
   if (event === "routed") update(run, { route: data.route as RunState["route"] });
-  else if (event === "sql_written") update(run, { phase: "running", sql: data.sql as string });
+  else if (event === "sql_written")
+    update(run, { phase: "running", sql: data.sql as string, plays: play(run, "Query written") });
   else if (event === "query_failed" && data.retrying)
-    update(run, { phase: "writing", retries: run.state.retries + 1 });
-  else if (event === "query_done") update(run, { phase: "checking" });
+    update(run, {
+      phase: "writing",
+      retries: run.state.retries + 1,
+      plays: play(run, "The database refused the query; rewriting it"),
+    });
+  else if (event === "query_done") update(run, { phase: "checking", plays: play(run, "Query ran on every game") });
   else if (event === "result") finish(run, { phase: "done", result: data as unknown as AskResult });
   else if (event === "error") finish(run, { phase: "failed", error: data.error as string });
 }
@@ -75,7 +85,7 @@ async function start(question: string, run: Run) {
 
 export const INITIAL: RunState = {
   phase: "writing", startedAt: 0, finishedAt: null, sql: null, route: null, retries: 0, result: null,
-  error: null,
+  error: null, plays: [],
 };
 
 function newRun(question: string, listeners = new Set<() => void>()): Run {
