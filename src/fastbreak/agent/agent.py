@@ -24,6 +24,9 @@ class Result:
     query_ran: bool = False  # True once a query ran, even if the answer then failed
     sql_attempts: int = 0
     route: str | None = None  # 'simple' or 'hard' when the question was routed
+    source: str = "nba"  # 'semantic' when the query ran on the dbt semantic layer
+    # With the semantic layer: the tables the query read and the definitions it used.
+    definitions: list = field(default_factory=list)
     # One entry per step, in order: model calls ('route', 'sql', 'answer'), each query run
     # ('query') and the grounding check ('grounding'). These become the spans of a trace.
     steps: list = field(default_factory=list)
@@ -85,7 +88,7 @@ def ask(question, llm, db_path, today=None, on_step=None, semantic=False):
     else:
         prompt, run = sql_system_prompt, run_readonly
     step = on_step or (lambda name, details: None)
-    result = Result(question)
+    result = Result(question, source="semantic" if semantic else "nba")
     if isinstance(llm, Routed):
         result.route, reply = route(question, llm.fast)
         _record(result, "route", reply)
@@ -135,6 +138,8 @@ def ask(question, llm, db_path, today=None, on_step=None, semantic=False):
 
     result.columns, result.rows, result.truncated = query.columns, query.rows, query.truncated
     result.query_ran = True
+    if semantic:
+        result.definitions = semantic_layer.definitions_used(result.sql)
     step("query_done", {"row_count": len(query.rows), "truncated": query.truncated})
     reply = llm.chat(
         [

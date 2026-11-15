@@ -1,16 +1,17 @@
 # DuckDB builds the semantic layer in data/semantic.duckdb and reads nba.db through
 # its SQLite extension, attached read-only: dbt never writes to the pipeline's database.
-# Paths are relative to semantic/, where dbt runs.
+# Paths are relative to semantic/, where dbt runs by hand; the nightly rebuild sets
+# FASTBREAK_SEMANTIC_DB and FASTBREAK_NBA_DB to absolute paths.
 fastbreak:
   target: dev
   outputs:
     dev:
       type: duckdb
-      path: ../data/semantic.duckdb
+      path: "{{ env_var('FASTBREAK_SEMANTIC_DB', '../data/semantic.duckdb') }}"
       extensions:
         - sqlite
       attach:
-        - path: ../data/nba.db
+        - path: "{{ env_var('FASTBREAK_NBA_DB', '../data/nba.db') }}"
           type: sqlite
           alias: nba
           read_only: true

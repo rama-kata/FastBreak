@@ -245,3 +245,37 @@ def test_a_simple_question_is_traced_but_not_queued(db_path, tmp_path):
     trace_db = traces.connect(traces_path)
     assert trace_db.execute("SELECT COUNT(*) FROM traces").fetchone() == (1,)
     assert traces.pending_reviews(trace_db) == []
+
+
+def test_semantic_answers_carry_their_key(db_path, tmp_path):
+    duckdb = pytest.importorskip("duckdb")
+    layer = tmp_path / "semantic.duckdb"
+    conn = duckdb.connect(str(layer))
+    conn.execute(
+        "CREATE TABLE fct_games AS SELECT 'DEN' AS home_abbr, 'NOP' AS away_abbr, 1 AS overtimes"
+    )
+    conn.close()
+    sql = "SELECT home_abbr, away_abbr FROM fct_games WHERE overtimes > 0"
+    app = create_app(
+        db_path, lambda: FakeLLM(sql_reply(sql), "DEN beat NOP in overtime."), semantic_db=layer
+    )
+    response = TestClient(app).post("/api/ask", json={"question": "Which games went to overtime?"})
+    result = dict(events(response))["result"]
+    assert result["source"] == "semantic"
+    assert result["rows"] == [["DEN", "NOP"]]
+    kinds = {(d["name"], d["kind"]) for d in result["definitions"]}
+    assert ("fct_games", "table") in kinds and ("overtimes", "column") in kinds
+
+
+def test_without_a_semantic_layer_questions_are_answered_from_nba_db(db_path, tmp_path):
+    sql = "SELECT abbreviation FROM teams WHERE team_id = 1610612744"
+    app = create_app(
+        db_path,
+        lambda: FakeLLM(sql_reply(sql), "That's GSW."),
+        semantic_db=tmp_path / "not-built.duckdb",
+    )
+    response = TestClient(app).post("/api/ask", json={"question": "Which team is 1610612744?"})
+    result = dict(events(response))["result"]
+    assert result["source"] == "nba"
+    assert result["definitions"] == []
+    assert result["answer"] == "That's GSW."

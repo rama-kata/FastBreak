@@ -36,5 +36,10 @@ semantic = [
     "dbt-metricflow[dbt-duckdb]>=0.15.0",
 ]
 
+[tool.uv]
+# The API answers from the dbt semantic layer and nightly rebuilds it, so a plain
+# `uv sync` keeps dbt and DuckDB installed.
+default-groups = ["dev", "semantic"]
+
 [tool.ruff]
 line-length = 100
