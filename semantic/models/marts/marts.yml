@@ -1,0 +1,70 @@
+version: 2
+
+models:
+  - name: dim_players
+    description: Every player who has played a game since 2015-16.
+    columns:
+      - name: player_id
+        data_tests: [unique, not_null]
+      - name: player_name
+        description: Full name with accents, as stored (e.g. Luka Dončić).
+        data_tests: [not_null]
+
+  - name: dim_teams
+    description: Every NBA team, by ID and abbreviation.
+    columns:
+      - name: team_id
+        data_tests: [unique, not_null]
+      - name: team_abbr
+        data_tests: [unique, not_null]
+
+  - name: fct_team_games
+    description: >
+      One row per team per game. Each game appears twice, once from each side.
+      Regular season and playoffs from 2015-16 on.
+    columns:
+      - name: game_id
+        data_tests: [not_null]
+      - name: team_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_teams'), field: team_id}}
+      - name: season_type
+        data_tests:
+          - accepted_values: {arguments: {values: ['Regular Season', 'Playoffs']}}
+      - name: home_away
+        description: >
+          'home' or 'away' as the schedule lists it. Neutral-site games still have a
+          designated home team; is_neutral marks them (complete from 2024-25 on).
+        data_tests:
+          - accepted_values: {arguments: {values: ['home', 'away']}}
+      - name: won
+        description: True when this team scored more points than its opponent.
+        data_tests: [not_null]
+      - name: margin
+        description: This team's points minus the opponent's. Positive in a win.
+
+  - name: fct_player_games
+    description: One row per player per game they played in.
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_players'), field: player_id}}
+      - name: home_away
+        data_tests:
+          - accepted_values: {arguments: {values: ['home', 'away']}}
+      - name: minutes
+        description: Seconds played / 60.0. Exact once the box score loads.
+      - name: is_starter
+        description: True for starters. Null until the game's box score is loaded.
+      - name: off_bench
+        description: True when the player didn't start. Null until the box score is loaded.
+      - name: double_digit_categories
+        description: How many of pts, reb, ast, stl, blk reached 10 or more.
+      - name: is_double_double
+        description: 10 or more in at least two of pts, reb, ast, stl, blk.
+        data_tests: [not_null]
+      - name: is_triple_double
+        description: 10 or more in at least three of pts, reb, ast, stl, blk.
+        data_tests: [not_null]
