@@ -30,6 +30,11 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.17.0",
 ]
+semantic = [
+    "dbt-core>=1.12.7",
+    "dbt-duckdb>=1.11.1",
+    "dbt-metricflow[dbt-duckdb]>=0.15.0",
+]
 
 [tool.ruff]
 line-length = 100
