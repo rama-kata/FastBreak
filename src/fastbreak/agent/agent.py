@@ -1,6 +1,7 @@
 import time
 from dataclasses import dataclass, field
 
+from fastbreak.agent import semantic as semantic_layer
 from fastbreak.agent.grounding import ungrounded_numbers
 from fastbreak.agent.prompt import ANSWER_SYSTEM_PROMPT, answer_user_prompt, sql_system_prompt
 from fastbreak.agent.router import route
@@ -68,15 +69,18 @@ def _timed(result, step, started, error=None):
     result.steps.append({"step": step, "seconds": seconds, "error": error})
 
 
-def ask(question, llm, db_path, today=None, on_step=None):
+def ask(question, llm, db_path, today=None, on_step=None, semantic=False):
     """Answer `question`: write SQL, run it read-only, then answer from the rows.
 
     The answer only goes out if every number in it is in the rows (or the question). If a
     query fails, the model sees the error and gets one more try. With a `Routed` model, a
     quick call first decides whether the question goes to thinking off or on.
     `on_step(name, details)`, if given, hears each step as it happens, so a caller can show
-    progress.
+    progress. With `semantic`, `db_path` is the dbt semantic layer (data/semantic.duckdb):
+    the model sees its marts and definitions, and the query runs there.
     """
+    prompt = semantic_layer.sql_system_prompt if semantic else sql_system_prompt
+    run = semantic_layer.run_readonly if semantic else run_readonly
     step = on_step or (lambda name, details: None)
     result = Result(question)
     if isinstance(llm, Routed):
@@ -85,7 +89,7 @@ def ask(question, llm, db_path, today=None, on_step=None):
         llm = llm.thinking if result.route == "hard" else llm.fast
         step("routed", {"route": result.route})
     messages = [
-        {"role": "system", "content": sql_system_prompt(today)},
+        {"role": "system", "content": prompt(today)},
         {"role": "user", "content": question},
     ]
     for attempt in range(1, MAX_SQL_ATTEMPTS + 1):
@@ -111,7 +115,7 @@ def ask(question, llm, db_path, today=None, on_step=None):
             continue
         started = time.perf_counter()
         try:
-            query = run_readonly(db_path, result.sql)
+            query = run(db_path, result.sql)
             _timed(result, "query", started)
             result.error = None
             break

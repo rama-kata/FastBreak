@@ -8,7 +8,7 @@ import sys
 import uvicorn
 
 from fastbreak import evals, metrics, traces
-from fastbreak.agent import evaluate
+from fastbreak.agent import evaluate, semantic
 from fastbreak.agent.agent import Routed, ask
 from fastbreak.agent.llm import LLMError, Ollama
 from fastbreak.db import connect, init_db
@@ -85,6 +85,11 @@ def main():
             p.add_argument("question")
         else:
             p.add_argument("--id", action="append", help="only this question (repeatable)")
+            p.add_argument(
+                "--semantic",
+                action="store_true",
+                help="query the dbt semantic layer (data/semantic.duckdb); needs --group semantic",
+            )
 
     show_metrics = commands.add_parser(
         "metrics", help="latency per step, cost per correct answer, pipeline failures"
@@ -256,9 +261,10 @@ def eval_command(conn, args):
     s = evaluate.run(
         conn,
         model(args),
-        args.db,
+        str(semantic.SEMANTIC_DB) if args.semantic else args.db,
         questions,
         trace_db=traces.connect(args.traces),
+        semantic=args.semantic,
     )
     low, high = s["accuracy_95"]
     print(
