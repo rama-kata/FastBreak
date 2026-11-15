@@ -4,6 +4,7 @@ import argparse
 import os
 import signal
 import sys
+from pathlib import Path
 
 import uvicorn
 
@@ -88,7 +89,7 @@ def main():
             p.add_argument(
                 "--semantic",
                 action="store_true",
-                help="query the dbt semantic layer (data/semantic.duckdb); needs --group semantic",
+                help="query the dbt semantic layer next to --db; needs --group semantic",
             )
 
     show_metrics = commands.add_parser(
@@ -248,6 +249,11 @@ sql = \"\"\"
 """
 
 
+def semantic_db(args):
+    """The semantic layer sits next to the nba.db it's built from (data/semantic.duckdb)."""
+    return str(Path(args.db).parent / semantic.SEMANTIC_DB.name)
+
+
 def eval_command(conn, args):
     questions = evals.load_questions()
     if args.id:
@@ -261,7 +267,7 @@ def eval_command(conn, args):
     s = evaluate.run(
         conn,
         model(args),
-        str(semantic.SEMANTIC_DB) if args.semantic else args.db,
+        semantic_db(args) if args.semantic else args.db,
         questions,
         trace_db=traces.connect(args.traces),
         semantic=args.semantic,

@@ -63,13 +63,14 @@ def score_one(
     semantic=False,
 ):
     result = ask(question.question, llm, db_path, today, semantic=semantic)
+    model = llm.name + (" (semantic)" if semantic else "")
     expected = expected_rows(conn, question, answers)
     # Scored on the query's rows: an answer that was cut off doesn't make a right query wrong.
     correct = result.query_ran and evals.same_answer(
         expected, result.rows, ordered=question.ordered, tolerance=question.tolerance
     )
     if trace_db is not None:
-        traces.record(trace_db, result, llm.name, "eval", eval_run, question.id, correct)
+        traces.record(trace_db, result, model, "eval", eval_run, question.id, correct)
     return {
         "id": question.id,
         "category": question.category,

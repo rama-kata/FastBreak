@@ -52,3 +52,46 @@ def test_a_long_query_is_stopped(layer):
         semantic.run_readonly(
             layer, "SELECT count(*) FROM range(1000000000) a, range(1000000000) b", timeout=0.5
         )
+
+
+def test_a_missing_layer_is_a_query_error(tmp_path):
+    with pytest.raises(QueryError, match="can't be opened"):
+        semantic.run_readonly(tmp_path / "nope.duckdb", "SELECT 1")
+
+
+def test_values_json_cant_hold_come_back_as_text(layer):
+    result = semantic.run_readonly(
+        layer, "SELECT INTERVAL 90 MINUTE, TIME '19:30:00', 1.50::DECIMAL(4,2)"
+    )
+    assert result.rows == [("1:30:00", "19:30:00", 1.5)]
+
+
+def test_the_season_rule_includes_this_season(tmp_path):
+    from datetime import date
+
+    from fastbreak.agent import semantic as s
+
+    db = tmp_path / "semantic.duckdb"
+    conn = duckdb.connect(str(db))
+    for name in s.MARTS:
+        conn.execute(f"CREATE TABLE {name} (id INTEGER)")
+    conn.close()
+    nodes = {
+        f"model.fastbreak.{name}": {
+            "name": name,
+            "resource_type": "model",
+            "description": "",
+            "columns": {},
+        }
+        for name in s.MARTS
+    }
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(__import__("json").dumps({"nodes": nodes, "metrics": {}}))
+    prompt = s.sql_system_prompt(date(2026, 11, 14), db, manifest)
+    assert "season BETWEEN '2015-16' AND '2026-27'" in prompt
+    assert "'2025-26'" in prompt  # last season, named as such
+
+
+def test_a_missing_build_says_how_to_build_it(tmp_path):
+    with pytest.raises(FileNotFoundError, match="dbt build"):
+        semantic.sql_system_prompt(None, tmp_path / "nope.duckdb", tmp_path / "manifest.json")

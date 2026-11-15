@@ -79,8 +79,11 @@ def ask(question, llm, db_path, today=None, on_step=None, semantic=False):
     progress. With `semantic`, `db_path` is the dbt semantic layer (data/semantic.duckdb):
     the model sees its marts and definitions, and the query runs there.
     """
-    prompt = semantic_layer.sql_system_prompt if semantic else sql_system_prompt
-    run = semantic_layer.run_readonly if semantic else run_readonly
+    if semantic:  # the schema the model sees comes from the database the query runs on
+        prompt = lambda today: semantic_layer.sql_system_prompt(today, db_path)
+        run = semantic_layer.run_readonly
+    else:
+        prompt, run = sql_system_prompt, run_readonly
     step = on_step or (lambda name, details: None)
     result = Result(question)
     if isinstance(llm, Routed):

@@ -11,6 +11,7 @@ import json
 import threading
 from datetime import date, datetime
 from decimal import Decimal
+from functools import lru_cache
 from pathlib import Path
 
 from fastbreak.agent.sql import MAX_ROWS, TIMEOUT_SECONDS, QueryError, QueryResult
@@ -30,13 +31,15 @@ def _connect(db_path):
 
 
 def _plain(value):
-    """DuckDB returns dates and decimals; the scorer and grounding check expect text and
-    floats, the way nba.db returns them."""
+    """DuckDB returns dates, decimals, intervals and more; the scorer, the grounding check
+    and the results file expect what nba.db returns: text, numbers, booleans or None."""
+    if value is None or isinstance(value, (str, bool, int, float)):
+        return value
     if isinstance(value, (date, datetime)):
         return value.isoformat()
     if isinstance(value, Decimal):
         return float(value)
-    return value
+    return str(value)  # e.g. an INTERVAL (timedelta), TIME or UUID
 
 
 def run_readonly(db_path, sql, max_rows=MAX_ROWS, timeout=TIMEOUT_SECONDS):
@@ -45,7 +48,10 @@ def run_readonly(db_path, sql, max_rows=MAX_ROWS, timeout=TIMEOUT_SECONDS):
 
     if not sql:
         raise QueryError("the reply had no SQL in it")
-    conn = _connect(db_path)
+    try:
+        conn = _connect(db_path)
+    except duckdb.Error as e:  # not built yet, or `dbt build` holds the write lock
+        raise QueryError(f"the semantic layer can't be opened: {e}") from e
     timer = threading.Timer(timeout, conn.interrupt)
     timer.start()
     try:
@@ -61,6 +67,7 @@ def run_readonly(db_path, sql, max_rows=MAX_ROWS, timeout=TIMEOUT_SECONDS):
         return QueryResult(columns, kept, len(rows) > max_rows)
     finally:
         timer.cancel()
+        timer.join()  # an interrupt already under way finishes before the connection closes
         conn.close()
 
 
@@ -115,7 +122,23 @@ def definitions_text(manifest_path=MANIFEST):
     return "\n".join(lines)
 
 
+@lru_cache(maxsize=4)
+def _context(db_path, manifest_path, db_mtime, manifest_mtime):
+    """The tables and definitions, built once per build of the semantic layer: a new
+    `dbt build` changes the files' modification times, and so the cache key."""
+    return tables_text(db_path, manifest_path), definitions_text(manifest_path)
+
+
 def sql_system_prompt(today=None, db_path=SEMANTIC_DB, manifest_path=MANIFEST):
+    db_path, manifest_path = Path(db_path), Path(manifest_path)
+    for path in (db_path, manifest_path):
+        if not path.exists():
+            raise FileNotFoundError(
+                f"{path} is missing: build the semantic layer with `dbt build` in semantic/"
+            )
+    tables, definitions = _context(
+        str(db_path), str(manifest_path), db_path.stat().st_mtime, manifest_path.stat().st_mtime
+    )
     today = today or date.today()
     season = current_season(today)
     last = season_label(int(season[:4]) - 1)
@@ -123,18 +146,18 @@ def sql_system_prompt(today=None, db_path=SEMANTIC_DB, manifest_path=MANIFEST):
 
 The tables, from the stats semantic layer. After -- is what a column means:
 
-{tables_text(db_path, manifest_path)}
+{tables}
 
 Definitions, from the semantic layer. Use them, and use the columns above that already
 hold a definition (minutes, off_bench, home_away, team_won, won, is_double_double,
 is_triple_double) instead of working it out again:
-{definitions_text(manifest_path)}
+{definitions}
 
 How to read a question:
 - The data holds every regular season and playoff game from 2015-16 to today. Today is
   {today.isoformat()}, so this season is '{season}' and last season is '{last}'.
-- Filter seasons with the season column (season BETWEEN '2015-16' AND '2025-26'),
-  never with a range of dates.
+- Filter seasons with the season column, never with a range of dates: season = '{last}',
+  or season BETWEEN '2015-16' AND '{season}' for every season so far.
 - When a question doesn't say which season type, include both.
 - Player names are stored with their accents, like 'Luka Dončić' and 'Nikola Jokić'.
 - When a question asks for the single most (or least), return every row tied for first,
