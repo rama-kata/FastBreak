@@ -19,7 +19,7 @@ from fastbreak.pipeline.run import current_season, season_label
 SEMANTIC_DB = Path("data/semantic.duckdb")
 MANIFEST = Path("semantic/target/manifest.json")
 # Only the marts: the staging models are views into nba.db and don't work outside dbt.
-MARTS = ("fct_player_games", "fct_team_games", "dim_players", "dim_teams")
+MARTS = ("fct_games", "fct_team_games", "fct_player_games", "dim_players", "dim_teams")
 
 
 def _connect(db_path):
@@ -133,6 +133,8 @@ is_triple_double) instead of working it out again:
 How to read a question:
 - The data holds every regular season and playoff game from 2015-16 to today. Today is
   {today.isoformat()}, so this season is '{season}' and last season is '{last}'.
+- Filter seasons with the season column (season BETWEEN '2015-16' AND '2025-26'),
+  never with a range of dates.
 - When a question doesn't say which season type, include both.
 - Player names are stored with their accents, like 'Luka Dončić' and 'Nikola Jokić'.
 - When a question asks for the single most (or least), return every row tied for first,

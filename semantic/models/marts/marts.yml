@@ -18,10 +18,31 @@ models:
       - name: team_abbr
         data_tests: [unique, not_null]
 
+  - name: fct_games
+    description: >
+      One row per game. Use it to count or list games (overtime games, games in a
+      season, a single game's score). Regular season and playoffs from 2015-16 on.
+    columns:
+      - name: game_id
+        data_tests: [unique, not_null]
+      - name: game_date
+        description: The day the game was played.
+      - name: season
+        description: Written '2024-25'.
+      - name: home_abbr
+        description: The home team's abbreviation, as the schedule lists it.
+      - name: away_abbr
+        description: The away team's abbreviation.
+      - name: winner_abbr
+        description: The team that won.
+      - name: overtimes
+        description: Number of overtime periods (0 for a regulation game).
+
   - name: fct_team_games
     description: >
-      One row per team per game. Each game appears twice, once from each side.
-      Regular season and playoffs from 2015-16 on.
+      Two rows per game, one for each team. Use it for a team's stats (records,
+      points, margins). Never count games from it: every game would count twice; use
+      fct_games. Regular season and playoffs from 2015-16 on.
     columns:
       - name: game_id
         data_tests: [not_null]
