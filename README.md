@@ -18,6 +18,7 @@ off (see [decisions](DECISIONS.md)).
 - [x] Phase 5: first agent ([results](#results-so-far), [decisions](DECISIONS.md))
 - [x] Phase 6: traces and metrics, and routing ([results](#results-so-far))
 - [x] Phase 7: API and web app ([live](https://fastbreak-eight.vercel.app))
+- [x] Semantic layer: dbt models, tests and metrics, and an agent that answers from them ([results](#the-semantic-layer))
 
 ## Goals
 
@@ -96,6 +97,35 @@ What these numbers say, and what they don't:
 
 Every run is saved in `evals/results/`, one line per question with the SQL,
 rows and answer, so any number here can be traced back to the queries behind it.
+
+### The semantic layer
+
+A dbt project in `semantic/` defines what the answers depend on once, in tested SQL:
+minutes, home and away, wins, off the bench, double- and triple-doubles, per-game
+averages and shooting percentages (total makes over total attempts). The agent can
+answer from these tables instead of the raw ones, with its prompt built from dbt's own
+descriptions and metric definitions. Same model, thinking off:
+
+| Run | Tables | Correct | Model time per correct answer | Queries failed |
+|---|---|---|---|---|
+| 9 | Raw (nba.db) | 36/50 (72%) | 13.0 s | 6 |
+| 11 | Semantic layer | 36/50 (72%) | 9.2 s | 1 |
+| 12 | + one row per game, seasons filtered by label | 38/50 (76%) | 8.5 s | 1 |
+| 13 | + fixes from code review | 37/50 (74%) | **8.2 s** | 1 |
+
+- **Accuracy didn't measurably change.** Run 12 against run 9 is 5 fixed and 3 broken
+  (McNemar p = 0.73), and runs 12 and 13 differ by noise.
+- **Cost did: about 37% less model time per correct answer,** and failed queries
+  went from 6 to 1. The model writes shorter queries when a definition is already a
+  column.
+- **It moved the errors instead of removing them.** It fixed definition mistakes (the
+  Celtics' points per game came back 8.0, averaged per player; now 120.6) and brought
+  new ones from grain: a table with one row per team per game makes every game count
+  twice. A one-row-per-game table fixed counting games, but a team's record still came
+  back once as 146-18, double the Warriors' 73-9.
+
+More in [DECISIONS.md](DECISIONS.md) and the layer's contract in
+[semantic/CONTEXT.md](semantic/CONTEXT.md).
 
 ## Scope for version 1
 
@@ -238,6 +268,21 @@ uv run fastbreak review 52 --as-question   # a draft entry for evals/questions.t
 
 A review happens after the answer has gone out: nothing waits on a person. A
 reviewed answer with a checked result is a ready-made new test question.
+
+**The semantic layer**
+
+```bash
+uv sync --group semantic                       # dbt, DuckDB and MetricFlow
+cd semantic
+uv run dbt build --profiles-dir .              # build data/semantic.duckdb and run its 36 tests
+DBT_PROFILES_DIR=. uv run mf query --metrics points_per_game \
+  --group-by player_game__season --where "{{ Dimension('player_game__player_name') }} = 'Stephen Curry'"
+uv run dbt docs generate --profiles-dir . && uv run dbt docs serve --profiles-dir .   # the data dictionary
+cd .. && uv run --group semantic fastbreak eval --semantic   # score the agent on the semantic layer
+```
+
+dbt reads `nba.db` read-only through DuckDB and never writes to it. Rebuild after the
+nightly load; it isn't automated yet.
 
 **Traces and metrics**
 
