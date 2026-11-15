@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { INITIAL, restartRun, snapshot, stopRun, subscribe, type RunState } from "@/lib/ask-store";
-import type { AskResult, Cell } from "@/lib/types";
+import type { AskResult, Cell, Definition } from "@/lib/types";
 
 // Each answer prints like a game story: the question as the deck, the answer as the
 // headline, then the box score (the rows) and how we got it (the SQL). Point at a number
@@ -315,6 +315,28 @@ function BoxScore({ result, used, ringed }: { result: AskResult; used: Set<numbe
   );
 }
 
+/** The key under the box score, the way a sports page explains its abbreviations: each
+ * table the query read with its grain, then each definition it used, from the semantic layer. */
+function Key({ definitions }: { definitions: Definition[] }) {
+  return (
+    <section className="flex min-w-0 flex-col gap-1.5">
+      <div className="border-b-2 border-ink">
+        <h3 className={label}>Key · from the stats semantic layer</h3>
+      </div>
+      <dl className="m-0 grid grid-cols-[minmax(6.5rem,max-content)_minmax(0,1fr)] font-agate text-[15px] [&>*]:border-b [&>*]:border-rule">
+        {definitions.map((d) => (
+          <Fragment key={`${d.kind}:${d.name}`}>
+            <dt className="py-1.5 pr-4 font-bold text-ink">{d.label}</dt>
+            <dd className="m-0 py-1.5 text-ink-soft">
+              {d.text} <span className="text-[13px] whitespace-nowrap text-muted">{d.name}</span>
+            </dd>
+          </Fragment>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 function Query({ sql }: { sql: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -335,7 +357,12 @@ function Query({ sql }: { sql: string }) {
 function Proof({ result, used, ringed }: { result: AskResult; used: Set<number>; ringed: number | null }) {
   return (
     <div className="grid gap-8 @3xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <BoxScore result={result} used={used} ringed={ringed} />
+      <div className="flex min-w-0 flex-col gap-6">
+        <BoxScore result={result} used={used} ringed={ringed} />
+        {result.source === "semantic" && result.definitions && result.definitions.length > 0 && (
+          <Key definitions={result.definitions} />
+        )}
+      </div>
       <Query sql={result.sql} />
     </div>
   );

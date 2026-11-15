@@ -8,6 +8,7 @@ dependency group (DuckDB).
 """
 
 import json
+import re
 import threading
 from datetime import date, datetime
 from decimal import Decimal
@@ -21,6 +22,34 @@ SEMANTIC_DB = Path("data/semantic.duckdb")
 MANIFEST = Path("semantic/target/manifest.json")
 # Only the marts: the staging models are views into nba.db and don't work outside dbt.
 MARTS = ("fct_games", "fct_team_games", "fct_player_games", "dim_players", "dim_teams")
+# What a visitor reads in an answer's key: each table's name, and the columns that hold a
+# definition (the rest, like pts, need none). The definitions themselves come from dbt.
+TABLE_LABELS = {
+    "fct_games": "Games",
+    "fct_team_games": "Team games",
+    "fct_player_games": "Player games",
+    "dim_players": "Players",
+    "dim_teams": "Teams",
+}
+DEFINED_COLUMNS = {
+    "minutes": "Minutes",
+    "off_bench": "Off the bench",
+    "is_starter": "Starter",
+    "home_away": "Home or away",
+    "won": "Win",
+    "team_won": "Team won",
+    "winner_abbr": "Winner",
+    "margin": "Margin",
+    "overtimes": "Overtimes",
+    "is_neutral": "Neutral site",
+    "double_digit_categories": "Double-digit categories",
+    "is_double_double": "Double-double",
+    "is_triple_double": "Triple-double",
+}
+
+
+class SemanticUnavailable(Exception):
+    """The semantic layer isn't built, or can't be read right now."""
 
 
 def _connect(db_path):
@@ -73,6 +102,46 @@ def run_readonly(db_path, sql, max_rows=MAX_ROWS, timeout=TIMEOUT_SECONDS):
 
 def _manifest(path):
     return json.loads(Path(path).read_text())
+
+
+@lru_cache(maxsize=4)
+def _models(manifest_path, manifest_mtime):
+    manifest = _manifest(manifest_path)
+    return {n["name"]: n for n in manifest["nodes"].values() if n["resource_type"] == "model"}
+
+
+def _first_sentence(text):
+    text = " ".join(text.split())
+    return text.split(". ")[0].rstrip(".") + "." if text else ""
+
+
+def definitions_used(sql, manifest_path=MANIFEST):
+    """The tables a query read, each with its grain, and the defined columns it used, each
+    with its definition, all as dbt describes them. For the key printed under an answer."""
+    manifest_path = Path(manifest_path)
+    models = _models(str(manifest_path), manifest_path.stat().st_mtime)
+    words = set(re.findall(r"[a-z_]+", sql.lower()))
+    tables = [t for t in MARTS if t in words]
+    used = [
+        {
+            "name": t,
+            "label": TABLE_LABELS[t],
+            "kind": "table",
+            "text": _first_sentence(models[t]["description"]),
+        }
+        for t in tables
+    ]
+    seen = set()
+    for t in tables:
+        columns = models[t]["columns"]
+        for col, label in DEFINED_COLUMNS.items():
+            text = columns.get(col, {}).get("description", "")
+            if col in words and col not in seen and text:
+                seen.add(col)
+                used.append(
+                    {"name": col, "label": label, "kind": "column", "text": " ".join(text.split())}
+                )
+    return used
 
 
 def tables_text(db_path=SEMANTIC_DB, manifest_path=MANIFEST):
@@ -130,15 +199,20 @@ def _context(db_path, manifest_path, db_mtime, manifest_mtime):
 
 
 def sql_system_prompt(today=None, db_path=SEMANTIC_DB, manifest_path=MANIFEST):
+    import duckdb
+
     db_path, manifest_path = Path(db_path), Path(manifest_path)
     for path in (db_path, manifest_path):
         if not path.exists():
-            raise FileNotFoundError(
+            raise SemanticUnavailable(
                 f"{path} is missing: build the semantic layer with `dbt build` in semantic/"
             )
-    tables, definitions = _context(
-        str(db_path), str(manifest_path), db_path.stat().st_mtime, manifest_path.stat().st_mtime
-    )
+    try:
+        tables, definitions = _context(
+            str(db_path), str(manifest_path), db_path.stat().st_mtime, manifest_path.stat().st_mtime
+        )
+    except (OSError, ValueError, KeyError, duckdb.Error) as e:  # e.g. mid-rebuild
+        raise SemanticUnavailable(f"the semantic layer can't be read: {e}") from e
     today = today or date.today()
     season = current_season(today)
     last = season_label(int(season[:4]) - 1)

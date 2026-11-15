@@ -48,8 +48,8 @@ Every number in an answer comes from a query result the visitor can see. If a nu
 
 ## Evidence on Hand
 
-- Test set: 50 hand-written questions with correct answers (`evals/questions.toml`). Live mode (thinking off) scored 36/50 (72%) on the latest run; routed 40/50 (80%); thinking on 44/50 (88%). With 50 questions, 72% means somewhere between 58% and 82% (95% range). Results and history are in `README.md` and `DECISIONS.md`.
-- Real data: about 14,250 games since 2015-16, refreshed nightly.
+- Test set: 50 hand-written questions with correct answers (`evals/questions.toml`). Live mode (thinking off, answering from the dbt semantic layer) scored 37/50 (74%) on the latest run; the same from the raw tables 36/50 (72%); routed 40/50 (80%); thinking on 44/50 (88%). With 50 questions, 74% means somewhere between 60% and 84% (95% range). Results and history are in `README.md` and `DECISIONS.md`.
+- Real data: about 14,300 games since 2015-16, refreshed nightly, with a dbt semantic layer rebuilt after each load.
 - No users, testimonials, press or usage numbers exist. Don't invent any.
 
 ## Product Principles

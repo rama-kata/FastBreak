@@ -19,6 +19,7 @@ import time
 from collections import deque
 from contextlib import closing
 from dataclasses import asdict
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -28,6 +29,7 @@ from fastbreak import traces
 from fastbreak.agent.agent import Routed, ask
 from fastbreak.agent.grounding import number_spans
 from fastbreak.agent.llm import LLMError, Ollama
+from fastbreak.agent.semantic import SemanticUnavailable
 
 MAX_QUESTION_CHARS = 300
 HOURLY_LIMIT = 10  # questions per visitor per hour
@@ -117,9 +119,11 @@ def result_payload(result, model, queued_for_review=False):
     return data
 
 
-def create_app(db_path, make_llm, api_key=None, limits=None, traces_path=None):
+def create_app(db_path, make_llm, api_key=None, limits=None, traces_path=None, semantic_db=None):
     """`make_llm()` returns the chat model to answer with; tests pass a fake one. With
     `traces_path`, each question is saved as a trace and hard answers are queued for review.
+    With `semantic_db`, questions are answered from the dbt semantic layer, and from nba.db
+    whenever the layer can't be read (not built yet, or mid-rebuild).
 
     The web app's server names the visitor in X-FastBreak-Client (their IP), which only
     counts when the API key is checked, since otherwise anyone could set it."""
@@ -189,7 +193,8 @@ def create_app(db_path, make_llm, api_key=None, limits=None, traces_path=None):
                 return False
             try:
                 with closing(traces.connect(traces_path)) as trace_db:
-                    trace_id = traces.record(trace_db, result, model, "ask")
+                    name = f"{model} (semantic)" if result.source == "semantic" else model
+                    trace_id = traces.record(trace_db, result, name, "ask")
                     if result.route == "hard" and result.query_ran:
                         traces.queue_for_review(trace_db, trace_id)
                         return True
@@ -200,7 +205,17 @@ def create_app(db_path, make_llm, api_key=None, limits=None, traces_path=None):
         def work():
             try:
                 llm = make_llm()
-                result = ask(body.question.strip(), llm, db_path, on_step=send)
+                question = body.question.strip()
+                result = None
+                if semantic_db:
+                    try:
+                        result = ask(question, llm, semantic_db, on_step=send, semantic=True)
+                    except SemanticUnavailable:
+                        log.warning(
+                            "semantic layer unavailable; answering from nba.db", exc_info=True
+                        )
+                if result is None:
+                    result = ask(question, llm, db_path, on_step=send)
                 queued = save_trace(result, llm.name)
                 send("result", result_payload(result, llm.name, queued))
             except LLMError as e:
@@ -246,8 +261,15 @@ def app_from_env():
             return Routed(Ollama(model), Ollama(model, think=True))
         return Ollama(model, think=mode == "think")
 
+    # FASTBREAK_SOURCE: 'nba' (the default) or 'semantic', the dbt layer built next to nba.db.
+    source = os.environ.get("FASTBREAK_SOURCE", "nba")
+    if source not in ("nba", "semantic"):
+        raise ValueError(f"FASTBREAK_SOURCE must be nba or semantic, not {source!r}")
+    db_path = os.environ.get("FASTBREAK_DB", "data/nba.db")
+
     return create_app(
-        db_path=os.environ.get("FASTBREAK_DB", "data/nba.db"),
+        db_path=db_path,
+        semantic_db=Path(db_path).parent / "semantic.duckdb" if source == "semantic" else None,
         traces_path=os.environ.get("FASTBREAK_TRACES", traces.TRACES_PATH),
         make_llm=make_llm,
         api_key=os.environ.get("FASTBREAK_API_KEY") or None,

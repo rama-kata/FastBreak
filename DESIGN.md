@@ -231,6 +231,9 @@ Black slabs and ink outlines, set in bold agate.
 ### The editor's pen (signature)
 In a checked answer, each number found in the result rows is a focusable mark with a 2px spot red underline. Pointing at it or focusing it hides the underline and draws a red ring around it and around every matching bold cell in the box score. The ring is an SVG path drawn on with a dash offset over 360ms on cubic-bezier(0.16, 1, 0.3, 1). With reduced motion it appears already drawn. The ring replaces the focus outline on these marks.
 
+### Key (semantic-layer answers)
+Under the box score, in the same column, the way a sports page explains its abbreviations under a box. A standing head, "Key · from the stats semantic layer", on the 2px ink rule, then a two-column list in 15px agate with hairline rules between rows: the term in bold ink (6.5rem minimum), its meaning in ink-soft, then the dbt name in muted 13px. Tables come first, each with its grain ("Player games: One row per player per game they played in."), then each definition the query used. Shown only when the answer came from the semantic layer and used something defined. No red: nothing in the key is an editor's mark.
+
 ### Play-by-play (working state)
 While a question runs: the headline in muted ink says what is happening, then a 2px ink rule with the red Live dot, the elapsed clock and Stop, then a timestamped log in 15px agate (a 3.5rem muted time column, hairline rules between plays). The query so far is a disclosure under it.
 
