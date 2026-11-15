@@ -1,0 +1,120 @@
+version: 2
+
+semantic_models:
+  - name: player_games
+    description: A player's game. Every per-game and per-player number starts here.
+    model: ref('fct_player_games')
+    defaults:
+      agg_time_dimension: game_date
+    entities:
+      - name: player_game
+        type: primary
+        expr: game_id || '-' || player_id
+      - name: player
+        type: foreign
+        expr: player_id
+      - name: game
+        type: foreign
+        expr: game_id
+    dimensions:
+      - name: game_date
+        type: time
+        type_params: {time_granularity: day}
+      - name: season
+        type: categorical
+      - name: season_type
+        type: categorical
+      - name: player_name
+        type: categorical
+      - name: team_abbr
+        type: categorical
+      - name: opponent_abbr
+        type: categorical
+      - name: home_away
+        type: categorical
+      - name: off_bench
+        type: categorical
+    measures:
+      - name: games_played
+        description: Games the player appeared in.
+        agg: sum
+        expr: "1"
+      - name: points
+        agg: sum
+        expr: pts
+      - name: rebounds
+        agg: sum
+        expr: reb
+      - name: assists
+        agg: sum
+        expr: ast
+      - name: minutes_played
+        agg: sum
+        expr: minutes
+      - name: field_goals_made
+        agg: sum
+        expr: fgm
+      - name: field_goals_attempted
+        agg: sum
+        expr: fga
+      - name: threes_made
+        agg: sum
+        expr: fg3m
+      - name: threes_attempted
+        agg: sum
+        expr: fg3a
+      - name: free_throws_made
+        agg: sum
+        expr: ftm
+      - name: free_throws_attempted
+        agg: sum
+        expr: fta
+      - name: double_double_games
+        agg: sum
+        expr: "is_double_double::int"
+      - name: triple_double_games
+        agg: sum
+        expr: "is_triple_double::int"
+
+  - name: team_games
+    description: A team's game. Records, scoring and margins start here.
+    model: ref('fct_team_games')
+    defaults:
+      agg_time_dimension: game_date
+    entities:
+      - name: team_game
+        type: primary
+        expr: game_id || '-' || team_id
+      - name: game
+        type: foreign
+        expr: game_id
+    dimensions:
+      - name: game_date
+        type: time
+        type_params: {time_granularity: day}
+      - name: season
+        type: categorical
+      - name: season_type
+        type: categorical
+      - name: team_abbr
+        type: categorical
+      - name: opponent_abbr
+        type: categorical
+      - name: home_away
+        type: categorical
+    measures:
+      - name: team_games_played
+        agg: sum
+        expr: "1"
+      - name: wins_count
+        agg: sum
+        expr: "won::int"
+      - name: losses_count
+        agg: sum
+        expr: "(not won)::int"
+      - name: team_points
+        agg: sum
+        expr: points
+      - name: points_allowed
+        agg: sum
+        expr: opponent_points

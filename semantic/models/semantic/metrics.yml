@@ -1,0 +1,51 @@
+version: 2
+
+# The definitions FastBreak's answers depend on. A per-game number is a total divided
+# by games played; a shooting percentage over many games is total makes over total
+# attempts, never an average of each game's percentage.
+# Totals are simple metrics; per-game numbers and percentages divide two of them.
+metrics:
+  # Totals
+  - {name: games, label: Games played, type: simple, type_params: {measure: games_played}}
+  - {name: total_points, label: Points, type: simple, type_params: {measure: points}}
+  - {name: total_rebounds, label: Rebounds, type: simple, type_params: {measure: rebounds}}
+  - {name: total_assists, label: Assists, type: simple, type_params: {measure: assists}}
+  - {name: total_minutes, label: Minutes, type: simple, type_params: {measure: minutes_played}}
+  - {name: field_goals_made_total, label: Field goals made, type: simple, type_params: {measure: field_goals_made}}
+  - {name: field_goals_attempted_total, label: Field goals attempted, type: simple, type_params: {measure: field_goals_attempted}}
+  - {name: threes_made_total, label: Threes made, type: simple, type_params: {measure: threes_made}}
+  - {name: threes_attempted_total, label: Threes attempted, type: simple, type_params: {measure: threes_attempted}}
+  - {name: free_throws_made_total, label: Free throws made, type: simple, type_params: {measure: free_throws_made}}
+  - {name: free_throws_attempted_total, label: Free throws attempted, type: simple, type_params: {measure: free_throws_attempted}}
+  - name: double_doubles
+    label: Double-doubles
+    description: Games with 10+ in at least two of pts, reb, ast, stl, blk.
+    type: simple
+    type_params: {measure: double_double_games}
+  - name: triple_doubles
+    label: Triple-doubles
+    description: Games with 10+ in at least three of pts, reb, ast, stl, blk.
+    type: simple
+    type_params: {measure: triple_double_games}
+  - {name: team_games, label: Team games played, type: simple, type_params: {measure: team_games_played}}
+  - {name: wins, label: Wins, type: simple, type_params: {measure: wins_count}}
+  - {name: losses, label: Losses, type: simple, type_params: {measure: losses_count}}
+  - {name: team_points_total, label: Team points, type: simple, type_params: {measure: team_points}}
+
+  # Per game and percentages
+  - name: points_per_game
+    label: Points per game
+    description: Total points / games the player appeared in.
+    type: ratio
+    type_params: {numerator: total_points, denominator: games}
+  - {name: rebounds_per_game, label: Rebounds per game, type: ratio, type_params: {numerator: total_rebounds, denominator: games}}
+  - {name: assists_per_game, label: Assists per game, type: ratio, type_params: {numerator: total_assists, denominator: games}}
+  - {name: minutes_per_game, label: Minutes per game, type: ratio, type_params: {numerator: total_minutes, denominator: games}}
+  - name: field_goal_pct
+    label: Field goal %
+    description: Total field goals made / total attempted, as a fraction between 0 and 1.
+    type: ratio
+    type_params: {numerator: field_goals_made_total, denominator: field_goals_attempted_total}
+  - {name: three_point_pct, label: Three-point %, type: ratio, type_params: {numerator: threes_made_total, denominator: threes_attempted_total}}
+  - {name: free_throw_pct, label: Free throw %, type: ratio, type_params: {numerator: free_throws_made_total, denominator: free_throws_attempted_total}}
+  - {name: team_points_per_game, label: Team points per game, type: ratio, type_params: {numerator: team_points_total, denominator: team_games}}
