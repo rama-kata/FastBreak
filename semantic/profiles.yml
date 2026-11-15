@@ -1,0 +1,17 @@
+# DuckDB builds the semantic layer in data/semantic.duckdb and reads nba.db through
+# its SQLite extension, attached read-only: dbt never writes to the pipeline's database.
+# Paths are relative to semantic/, where dbt runs.
+fastbreak:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/semantic.duckdb
+      extensions:
+        - sqlite
+      attach:
+        - path: ../data/nba.db
+          type: sqlite
+          alias: nba
+          read_only: true
+      threads: 4

@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: nba
+    description: The pipeline's SQLite database (data/nba.db), attached read-only.
+    schema: main
+    database: nba
+    tables:
+      - name: games
+        description: One row per game, with both teams and the final score.
+      - name: player_game_stats
+        description: One row per player per game they played in.
+      - name: players
+      - name: teams

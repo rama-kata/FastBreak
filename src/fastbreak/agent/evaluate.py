@@ -52,16 +52,25 @@ def percentile(values, p):
 
 
 def score_one(
-    conn, question, llm, db_path, today=None, answers=evals.ANSWERS, trace_db=None, eval_run=None
+    conn,
+    question,
+    llm,
+    db_path,
+    today=None,
+    answers=evals.ANSWERS,
+    trace_db=None,
+    eval_run=None,
+    semantic=False,
 ):
-    result = ask(question.question, llm, db_path, today)
+    result = ask(question.question, llm, db_path, today, semantic=semantic)
+    model = llm.name + (" (semantic)" if semantic else "")
     expected = expected_rows(conn, question, answers)
     # Scored on the query's rows: an answer that was cut off doesn't make a right query wrong.
     correct = result.query_ran and evals.same_answer(
         expected, result.rows, ordered=question.ordered, tolerance=question.tolerance
     )
     if trace_db is not None:
-        traces.record(trace_db, result, llm.name, "eval", eval_run, question.id, correct)
+        traces.record(trace_db, result, model, "eval", eval_run, question.id, correct)
     return {
         "id": question.id,
         "category": question.category,
@@ -151,11 +160,15 @@ def run(
     answers=evals.ANSWERS,
     log=print,
     trace_db=None,
+    semantic=False,
 ):
     """Score `questions` (approved only) and save the run. Returns the summary.
 
     With `trace_db`, each question is also saved as a trace, tagged with the run's file name.
+    With `semantic`, the agent queries the dbt semantic layer at `db_path`; the expected
+    answers still come from nba.db through `conn`.
     """
+    name = llm.name + (" (semantic)" if semantic else "")
     questions = [q for q in questions if q.status == "approved"]
     missing = [q.id for q in questions if q.frozen and evals.frozen_answer(q, answers) is None]
     if missing:
@@ -163,23 +176,26 @@ def run(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H%M%SZ")
-    slug = llm.name.replace(" (thinking)", "-think").replace(" (routed)", "-routed")
+    slug = name.replace(" (thinking)", "-think").replace(" (routed)", "-routed")
+    slug = slug.replace(" (semantic)", "-semantic")
     slug = slug.replace(":", "-").replace("/", "-")
     path = out_dir / f"{stamp}-{slug}.jsonl"
     records = []
     with path.open("w") as fh:
         try:
             for i, q in enumerate(questions, 1):
-                record = score_one(conn, q, llm, db_path, today, answers, trace_db, path.stem)
+                record = score_one(
+                    conn, q, llm, db_path, today, answers, trace_db, path.stem, semantic
+                )
                 records.append(record)
                 fh.write(json.dumps(record, ensure_ascii=False) + "\n")
                 mark = "ok   " if record["correct"] else "WRONG" if record["query_ran"] else "ERROR"
                 log(f"[{i:>2}/{len(questions)}] {mark} {q.id}  ({record['seconds']:.1f}s)")
         except BaseException:  # the model failed, or Ctrl-C: save what was scored, then stop
-            fh.write(json.dumps(summarize(records, llm.name, finished=False)) + "\n")
+            fh.write(json.dumps(summarize(records, name, finished=False)) + "\n")
             log(f"stopped after {len(records)} of {len(questions)} questions; saved to {path}")
             raise
-        summary = summarize(records, llm.name)
+        summary = summarize(records, name)
         fh.write(json.dumps(summary) + "\n")
     summary["saved"] = str(path)
     return summary

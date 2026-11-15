@@ -1,0 +1,128 @@
+version: 2
+
+models:
+  - name: dim_players
+    description: Every player who has played a game since 2015-16.
+    columns:
+      - name: player_id
+        data_tests: [unique, not_null]
+      - name: player_name
+        description: Full name with accents, as stored (e.g. Luka Dončić).
+        data_tests: [not_null]
+
+  - name: dim_teams
+    description: Every NBA team, by ID and abbreviation.
+    columns:
+      - name: team_id
+        data_tests: [unique, not_null]
+      - name: team_abbr
+        data_tests: [unique, not_null]
+
+  - name: fct_games
+    description: >
+      One row per game. Use it to count or list games (overtime games, games in a
+      season, a single game's score). Regular season and playoffs from 2015-16 on.
+    columns:
+      - name: game_id
+        data_tests: [unique, not_null]
+      - name: game_date
+        description: The day the game was played.
+      - name: season
+        description: Written '2024-25'.
+      - name: home_abbr
+        description: The home team's abbreviation, as the schedule lists it.
+      - name: away_abbr
+        description: The away team's abbreviation.
+      - name: winner_abbr
+        description: The team that won.
+      - name: overtimes
+        description: Number of overtime periods (0 for a regulation game).
+
+  - name: fct_team_games
+    description: >
+      Two rows per game, one for each team. Use it for a team's stats (records,
+      points, margins). Never count games from it: every game would count twice; use
+      fct_games. Regular season and playoffs from 2015-16 on.
+    columns:
+      - name: game_id
+        data_tests: [not_null]
+      - name: team_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_teams'), field: team_id}}
+      - name: season_type
+        data_tests:
+          - accepted_values: {arguments: {values: ['Regular Season', 'Playoffs']}}
+      - name: home_away
+        description: >
+          'home' or 'away' as the schedule lists it. Neutral-site games still have a
+          designated home team; is_neutral marks them (complete from 2024-25 on).
+        data_tests:
+          - accepted_values: {arguments: {values: ['home', 'away']}}
+      - name: won
+        description: True when this team scored more points than its opponent.
+        data_tests: [not_null]
+      - name: margin
+        description: This team's points minus the opponent's. Positive in a win.
+      - name: team_abbr
+        description: This team's abbreviation (e.g. BOS).
+      - name: opponent_abbr
+        description: The other team's abbreviation.
+      - name: points
+        description: This team's points in the game.
+      - name: opponent_points
+        description: The other team's points in the game.
+      - name: game_date
+        description: The day the game was played.
+      - name: season
+        description: Written '2024-25'.
+      - name: overtimes
+        description: Number of overtime periods (0 for a regulation game).
+
+  - name: fct_player_games
+    description: One row per player per game they played in.
+    columns:
+      - name: game_date
+        description: The day the game was played.
+      - name: season
+        description: Written '2024-25'.
+      - name: season_type
+        description: "'Regular Season' or 'Playoffs'."
+      - name: player_name
+        description: Full name with accents, as stored (e.g. Luka Dončić).
+      - name: team_abbr
+        description: The player's team in this game. Players get traded, so it's per game.
+      - name: opponent_abbr
+        description: The other team in this game.
+      - name: team_won
+        description: True when the player's team won the game.
+      - name: is_neutral
+        description: True for a neutral-site game. Complete from 2024-25 on.
+      - name: pts
+        description: "Points. Also reb, ast, stl, blk, tov, pf: rebounds, assists, steals, blocks, turnovers, fouls."
+      - name: fgm
+        description: "Field goals made. fga attempted; fg3m/fg3a threes; ftm/fta free throws."
+      - name: plus_minus
+        description: Points scored minus allowed while the player was on the court.
+      - name: player_id
+        data_tests:
+          - not_null
+          - relationships: {arguments: {to: ref('dim_players'), field: player_id}}
+      - name: home_away
+        description: "'home' or 'away': where the player's team played, as the schedule lists it."
+        data_tests:
+          - accepted_values: {arguments: {values: ['home', 'away']}}
+      - name: minutes
+        description: Seconds played / 60.0. Exact once the box score loads.
+      - name: is_starter
+        description: True for starters. Null until the game's box score is loaded.
+      - name: off_bench
+        description: True when the player didn't start. Null until the box score is loaded.
+      - name: double_digit_categories
+        description: How many of pts, reb, ast, stl, blk reached 10 or more.
+      - name: is_double_double
+        description: 10 or more in at least two of pts, reb, ast, stl, blk.
+        data_tests: [not_null]
+      - name: is_triple_double
+        description: 10 or more in at least three of pts, reb, ast, stl, blk.
+        data_tests: [not_null]

@@ -17,3 +17,9 @@ data/
 
 # Vercel
 .vercel
+
+# dbt
+semantic/target/
+semantic/logs/
+semantic/dbt_packages/
+semantic/.user.yml
