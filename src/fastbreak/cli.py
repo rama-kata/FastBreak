@@ -1,4 +1,4 @@
-"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | status | questions | ask | eval | metrics | review | serve>."""
+"""The `fastbreak` command: uv run fastbreak <load-seasons | boxscores | nightly | semantic-build | status | questions | ask | eval | metrics | review | serve>."""
 
 import argparse
 import os
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import uvicorn
 
-from fastbreak import evals, metrics, traces
+from fastbreak import evals, metrics, semantic_build, traces
 from fastbreak.agent import evaluate, semantic
 from fastbreak.agent.agent import Routed, ask
 from fastbreak.agent.llm import LLMError, Ollama
@@ -62,6 +62,9 @@ def main():
 
     commands.add_parser("status", help="show pipeline progress")
 
+    commands.add_parser(
+        "semantic-build", help="rebuild the dbt semantic layer next to --db (nightly does it too)"
+    )
     questions = commands.add_parser("questions", help="the test set in evals/questions.toml")
     actions = questions.add_subparsers(dest="action", required=True)
     actions.add_parser("check", help="run every question's SQL and compare to its saved answer")
@@ -133,6 +136,9 @@ def main():
             )
         elif args.command == "nightly":
             run.ingest_nightly(conn, fetcher, days=args.days)
+            rebuild_semantic_layer(args)
+        elif args.command == "semantic-build":
+            rebuild_semantic_layer(args)
         elif args.command == "questions":
             questions_command(conn, args)
         elif args.command == "ask":
@@ -247,6 +253,15 @@ sql = \"\"\"
 {(t["sql"] or "").strip()}
 \"\"\"
 """
+
+
+def rebuild_semantic_layer(args):
+    """After the nightly load, the dbt semantic layer catches up. A failed build is reported
+    and the last good layer keeps serving; it doesn't fail the night's load."""
+    try:
+        semantic_build.rebuild(args.db, semantic_db(args))
+    except semantic_build.BuildFailed as e:
+        print(f"semantic layer not rebuilt: {e}", file=sys.stderr)
 
 
 def semantic_db(args):

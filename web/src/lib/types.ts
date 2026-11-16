@@ -32,4 +32,10 @@ export type AskResult = {
   queued_for_review: boolean;
   blocked: boolean;
   number_spans: { start: number; end: number; in_rows: boolean; grounded: boolean }[];
+  /** "semantic" when the query ran on the dbt semantic layer. Absent from older APIs. */
+  source?: "semantic" | "nba";
+  /** The tables the query read (with their grain) and the definitions it used. */
+  definitions?: Definition[];
 };
+
+export type Definition = { name: string; label: string; kind: "table" | "column"; text: string };

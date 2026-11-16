@@ -93,5 +93,46 @@ def test_the_season_rule_includes_this_season(tmp_path):
 
 
 def test_a_missing_build_says_how_to_build_it(tmp_path):
-    with pytest.raises(FileNotFoundError, match="dbt build"):
+    with pytest.raises(semantic.SemanticUnavailable, match="dbt build"):
         semantic.sql_system_prompt(None, tmp_path / "nope.duckdb", tmp_path / "manifest.json")
+
+
+def test_the_key_lists_each_table_with_its_grain_then_the_definitions_used(tmp_path):
+    from fastbreak.agent import semantic as s
+
+    def model(name, description, columns):
+        return {
+            "name": name,
+            "resource_type": "model",
+            "description": description,
+            "columns": {c: {"description": d} for c, d in columns.items()},
+        }
+
+    nodes = {
+        "model.fastbreak.fct_player_games": model(
+            "fct_player_games",
+            "One row per player per game they played in. More detail here.",
+            {
+                "is_double_double": "10 or more in at least two of pts, reb, ast, stl, blk.",
+                "pts": "Points.",  # needs no definition, so it isn't listed
+            },
+        ),
+        "model.fastbreak.fct_games": model("fct_games", "One row per game.", {}),
+    }
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(__import__("json").dumps({"nodes": nodes}))
+    sql = "SELECT player_name, COUNT(*) FROM fct_player_games WHERE is_double_double AND pts > 20"
+    assert s.definitions_used(sql, manifest) == [
+        {
+            "name": "fct_player_games",
+            "label": "Player games",
+            "kind": "table",
+            "text": "One row per player per game they played in.",
+        },
+        {
+            "name": "is_double_double",
+            "label": "Double-double",
+            "kind": "column",
+            "text": "10 or more in at least two of pts, reb, ast, stl, blk.",
+        },
+    ]

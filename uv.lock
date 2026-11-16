@@ -598,6 +598,7 @@ wheels = [
 name = "fastbreak"
 version = "0.1.0"
 source = { editable = "." }
+default-groups = ["dev", "semantic"]
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },

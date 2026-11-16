@@ -124,8 +124,9 @@ descriptions and metric definitions. Same model, thinking off:
   twice. A one-row-per-game table fixed counting games, but a team's record still came
   back once as 146-18, double the Warriors' 73-9.
 
-More in [DECISIONS.md](DECISIONS.md) and the layer's contract in
-[semantic/CONTEXT.md](semantic/CONTEXT.md).
+The live site answers from the semantic layer (run 13's setup), and each answer prints a key
+under its box score with the tables and definitions it used. More in
+[DECISIONS.md](DECISIONS.md) and the layer's contract in [semantic/CONTEXT.md](semantic/CONTEXT.md).
 
 ## Scope for version 1
 
@@ -272,7 +273,7 @@ reviewed answer with a checked result is a ready-made new test question.
 **The semantic layer**
 
 ```bash
-uv sync --group semantic                       # dbt, DuckDB and MetricFlow
+uv sync                                        # includes dbt, DuckDB and MetricFlow
 cd semantic
 uv run dbt build --profiles-dir .              # build data/semantic.duckdb and run its 36 tests
 DBT_PROFILES_DIR=. uv run mf query --metrics points_per_game \
@@ -281,8 +282,14 @@ uv run dbt docs generate --profiles-dir . && uv run dbt docs serve --profiles-di
 cd .. && uv run --group semantic fastbreak eval --semantic   # score the agent on the semantic layer
 ```
 
-dbt reads `nba.db` read-only through DuckDB and never writes to it. Rebuild after the
-nightly load; it isn't automated yet.
+dbt reads `nba.db` read-only through DuckDB and never writes to it. `fastbreak nightly`
+rebuilds the layer after each load (`fastbreak semantic-build` does it by hand): dbt builds
+into a new file, and only when every model and test passes is it swapped in, so a failed
+build leaves the last good layer serving.
+
+The API answers from the semantic layer with `FASTBREAK_SOURCE=semantic` in `api.env`, and
+falls back to `nba.db` whenever the layer can't be read. Each answer then carries a key, shown
+under its box score: the tables it read, with their grain, and the definitions it used.
 
 **Traces and metrics**
 

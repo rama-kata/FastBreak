@@ -8,7 +8,7 @@ const h3 = "m-0 font-agate text-[13px] font-bold tracking-[0.08em] uppercase";
 export function AccuracyLine() {
   return (
     <p className="m-0 font-agate text-[13px] text-muted">
-      Right on <strong className="text-ink">36 of 50</strong> test questions, so check the box score.{" "}
+      Right on <strong className="text-ink">37 of 50</strong> test questions, so check the box score.{" "}
       <button
         type="button"
         popoverTarget="how-it-works"
@@ -53,7 +53,7 @@ export function HowItWorksPanel({ onOpenChange }: { onOpenChange?: (open: boolea
           <ol className="m-0 flex list-none flex-col gap-2 p-0 [counter-reset:step]">
             {[
               "A language model (qwen3:14b, running on a home PC) writes a read-only SQL query for your question.",
-              "The query runs on a database of about 14,250 NBA games since 2015-16, loaded from NBA.com box scores every night.",
+              "The query runs on about 14,300 NBA games since 2015-16, loaded from NBA.com box scores every night into a semantic layer: tables where definitions like a double-double or a home game are worked out once and tested with dbt. The key under each box score shows the ones your answer used.",
               "The model writes the answer from the rows the query returned.",
               "Every number in the answer is checked against those rows. If one isn't there, the answer is held back and you see the rows instead.",
             ].map((s) => (
@@ -80,7 +80,12 @@ export function HowItWorksPanel({ onOpenChange }: { onOpenChange?: (open: boolea
             </thead>
             <tbody>
               <tr className="border-b border-rule font-bold text-ink">
-                <td className="py-1.5">Quick (this site)</td>
+                <td className="py-1.5">Quick, from the semantic layer (this site)</td>
+                <td className="py-1.5 text-right">37 of 50</td>
+                <td className="py-1.5 text-right">4 s</td>
+              </tr>
+              <tr className="border-b border-rule">
+                <td className="py-1.5">Quick, from the raw tables</td>
                 <td className="py-1.5 text-right">36 of 50</td>
                 <td className="py-1.5 text-right">6 s</td>
               </tr>
@@ -97,7 +102,9 @@ export function HowItWorksPanel({ onOpenChange }: { onOpenChange?: (open: boolea
             </tbody>
           </table>
           <p className="m-0 text-[14px] text-muted">
-            50 questions is a small test: 36 of 50 means the true rate is somewhere between 58% and 82%.
+            50 questions is a small test: 37 of 50 means the true rate is somewhere between 60% and 84%.
+            The semantic layer didn&apos;t measurably change accuracy; it cut the model&apos;s time per right
+            answer by about a third.
           </p>
         </section>
 
